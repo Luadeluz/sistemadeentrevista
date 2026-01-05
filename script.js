@@ -1556,7 +1556,15 @@ function importarDados() {
                 entrevistas = dadosImportados;
                 localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
                 carregarDados();
-                mostrarMensagem('📥 Dados restaurados com sucesso!', 'success');
+                
+                // Enviar dados importados para o Google Sheets
+                mostrarMensagem(`📥 Restaurado! Enviando ${dadosImportados.length} registros para a planilha...`, 'info');
+                
+                dadosImportados.forEach((item, index) => {
+                    setTimeout(() => {
+                        enviarParaGoogleSheets(item);
+                    }, index * 1000); // 1 segundo de intervalo entre cada envio para não sobrecarregar
+                });
             } else {
                 throw new Error('Formato inválido');
             }
