@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Entrevistas - Varejo</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 Sistema de Entrevistas - Varejo</h1>
+            <p class="subtitle">Avaliação de candidatos para Operacional e Gerente de Loja</p>
+            <button id="toggleDarkMode" class="btn-theme-toggle" title="Alternar Modo Escuro">
+                🌙
+            </button>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="entrevista">🎯 Nova Entrevista</button>
+            <button class="tab-btn" data-tab="agenda">📅 Agenda</button>
+            <button class="tab-btn" data-tab="historico">📊 Histórico</button>
+            <button class="tab-btn" data-tab="relatorio">📄 Relatório PDF</button>
+            <button class="tab-btn" data-tab="estatisticas">📈 Estatísticas</button>
+            <button class="tab-btn" data-tab="configuracoes">⚙️ Configurações</button>
+        </div>
+
+        <!-- ABA: NOVA ENTREVISTA -->
+        <div class="tab-content active" id="tab-entrevista">
+            <div class="app-container">
+                <div class="card">
+                    <h2>👤 Informações da Entrevista</h2>
+                    <form id="formEntrevista">
+                        <div class="form-group">
+                            <label for="candidatoNome">Nome do Candidato *</label>
+                            <input type="text" id="candidatoNome" required placeholder="Nome completo do candidato">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cargo">Selecione o Cargo *</label>
+                            <select id="cargo" required>
+                                <option value="">Escolha um cargo...</option>
+                                <!-- Cargos carregados via JavaScript -->
+                            </select>
+                        </div>
+
+                        <div id="cargoInfo" class="cargo-info hidden">
+                            <div class="cargo-info-header">
+                                <h3><span id="cargoNomeSelecionado"></span></h3>
+                                <div class="cargo-detalhes">
+                                    <span>📝 <span id="totalPerguntas">0</span> perguntas</span>
+                                    <span>⏱️ <span id="cargoDuracao"></span></span>
+                                </div>
+                            </div>
+                            
+                            <div class="cargo-script">
+                                <div class="script-item"><strong>💰 Salário:</strong> <span id="cargoSalario"></span></div>
+                                <div class="script-item"><strong>🎁 Benefícios:</strong> <span id="cargoBeneficios"></span></div>
+                                <div class="script-item"><strong>⏰ Horário:</strong> <span id="cargoHorario"></span></div>
+                            </div>
+
+                            <button type="button" class="btn-secondary btn-small" onclick="alterarCargo()">
+                                Alterar Cargo
+                            </button>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="dataEntrevista">Data *</label>
+                                <input type="date" id="dataEntrevista" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="horaEntrevista">Hora *</label>
+                                <input type="time" id="horaEntrevista" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="vagaInhire">Nome da Vaga no InHire</label>
+                            <input type="text" id="vagaInhire" placeholder="Ex: Gerente de Loja - Rio de Janeiro">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="entrevistador">Entrevistador *</label>
+                            <input type="text" id="entrevistador" required placeholder="Seu nome">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="localEntrevista">Local da Entrevista</label>
+                            <select id="localEntrevista">
+                                <option value="">Selecione...</option>
+                                <option value="presencial">Presencial</option>
+                                <option value="online">Online</option>
+                            </select>
+                        </div>
+
+                        <div class="acoes-agendamento">
+                            <button type="button" class="btn btn-google" onclick="agendarGoogleCalendar()">
+                                📅 Agendar no Google
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="salvarAgendamento()">
+                                💾 Salvar na Agenda
+                            </button>
+                        </div>
+                        
+                        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+                        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+                            ▶️ Iniciar Entrevista Agora
+                        </button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>📝 Respostas e Avaliação</h2>
+                    <div id="perguntasContainer" class="perguntas-container">
+                        <div class="no-data">
+                            Selecione um cargo para visualizar as perguntas da entrevista
+                        </div>
+                    </div>
+
+                    <div class="avaliacao-section">
+                        <h3>📊 Avaliação por Competência</h3>
+                        <div id="avaliacaoContainer">
+                            <!-- Avaliações carregadas dinamicamente -->
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pontosFortes">Pontos Fortes do Candidato</label>
+                            <textarea id="pontosFortes" placeholder="Liste os principais pontos positivos observados..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pontosMelhorar">Pontos a Melhorar</label>
+                            <textarea id="pontosMelhorar" placeholder="Áreas que precisam de desenvolvimento..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="observacoes">Observações Gerais</label>
+                            <textarea id="observacoes" placeholder="Anotações adicionais sobre a entrevista..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Avaliação Final</label>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="status" value="aprovado">
+                                    <span class="radio-label">✅ Aprovado</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="status" value="reprovado">
+                                    <span class="radio-label">❌ Reprovado</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="status" value="analise" checked>
+                                    <span class="radio-label">⏳ Em Análise</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="status" value="faltou">
+                                    <span class="radio-label">🚫 Faltou</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-success" onclick="salvarEntrevista()" style="width: 100%;">
+                            💾 Salvar Entrevista Completa
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA: AGENDA -->
+        <div class="tab-content" id="tab-agenda">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📅 Agenda de Entrevistas</h2>
+                </div>
+                <div id="agendaContainer" class="agenda-container">
+                    <!-- Agenda carregada via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA: HISTÓRICO -->
+        <div class="tab-content" id="tab-historico">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📊 Histórico de Entrevistas</h2>
+                    <div class="search-container">
+                        <input type="text" id="buscarEntrevista" placeholder="🔍 Buscar por nome...">
+                        <select id="filtroCargoHistorico">
+                            <option value="">Todos os Cargos</option>
+                        </select>
+                        <input type="date" id="filtroDataInicio" title="Data Inicial">
+                        <input type="date" id="filtroDataFim" title="Data Final">
+                        <select id="filtroStatus">
+                            <option value="">Todos status</option>
+                            <option value="aprovado">Aprovados</option>
+                            <option value="reprovado">Reprovados</option>
+                            <option value="analise">Em análise</option>
+                            <option value="agendado">Agendados</option>
+                            <option value="faltou">Faltou</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="entrevistas-lista" id="listaEntrevistas">
+                    <!-- Entrevistas carregadas dinamicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA: RELATÓRIO PDF -->
+        <div class="tab-content" id="tab-relatorio">
+            <div class="card">
+                <h2>📄 Gerar Relatório PDF</h2>
+                
+                <div class="form-group">
+                    <label for="selecionarEntrevistaRelatorio">Selecionar Entrevista</label>
+                    <select id="selecionarEntrevistaRelatorio">
+                        <option value="">Escolha uma entrevista...</option>
+                    </select>
+                </div>
+
+                <div id="relatorioPreview" class="relatorio-preview hidden">
+                    <!-- Preview do relatório -->
+                </div>
+
+                <div class="acoes-relatorio" id="acoesRelatorio">
+                    <button class="btn btn-pdf" onclick="gerarPDF()" disabled>
+                        📥 Gerar PDF
+                    </button>
+                    <button class="btn btn-secondary" onclick="imprimirRelatorio()" disabled>
+                        🖨️ Imprimir
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA: ESTATÍSTICAS -->
+        <div class="tab-content" id="tab-estatisticas">
+            <div class="card">
+                <h2>📈 Estatísticas do Processo Seletivo</h2>
+                
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-icon">📋</div>
+                        <div class="stat-number" id="totalEntrevistas">0</div>
+                        <div class="stat-label">Total de Entrevistas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-number" id="totalAprovados">0</div>
+                        <div class="stat-label">Aprovados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">❌</div>
+                        <div class="stat-number" id="totalReprovados">0</div>
+                        <div class="stat-label">Reprovados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🚫</div>
+                        <div class="stat-number" id="totalFaltou">0</div>
+                        <div class="stat-label">Faltou</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-number" id="taxaAprovacao">0%</div>
+                        <div class="stat-label">Taxa de Aprovação</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>📈 Distribuição por Cargo</h3>
+                    <div id="chartCargos" class="chart"></div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>📅 Entrevistas por Mês</h3>
+                    <div id="chartMensal" class="chart"></div>
+                </div>
+
+                <div class="ultimas-entrevistas">
+                    <h3>🕐 Últimas Entrevistas</h3>
+                    <div id="listaUltimasEntrevistas"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA: CONFIGURAÇÕES (BACKUP) -->
+        <div class="tab-content" id="tab-configuracoes">
+            <div class="card">
+                <h2>⚙️ Gerenciamento de Dados</h2>
+                <p>Faça o backup dos seus dados ou restaure de um arquivo salvo anteriormente.</p>
+                
+                <div class="backup-actions">
+                    <div class="backup-card">
+                        <h3>📤 Exportar Dados</h3>
+                        <p>Baixe um arquivo JSON com todo o histórico de entrevistas.</p>
+                        <button class="btn btn-primary" onclick="exportarDados()">Baixar Backup</button>
+                    </div>
+                    
+                    <div class="backup-card">
+                        <h3>📥 Importar Dados</h3>
+                        <p>Restaure entrevistas de um arquivo de backup (substitui ou mescla).</p>
+                        <input type="file" id="arquivoBackup" accept=".json" style="margin-bottom: 10px;">
+                        <button class="btn btn-secondary" onclick="importarDados()">Restaurar Backup</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE DETALHES -->
+        <div id="modalDetalhes" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Detalhes da Entrevista</h3>
+                    <button class="close-modal" onclick="fecharModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="modalDetalhesConteudo">
+                    <!-- Conteúdo carregado dinamicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE CONFIRMAÇÃO -->
+        <div id="modalConfirmacao" class="modal">
+            <div class="modal-content modal-sm">
+                <div class="modal-body">
+                    <p id="mensagemConfirmacao"></p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="fecharModalConfirmacao()">Cancelar</button>
+                    <button class="btn btn-danger" id="btnConfirmarAcao">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="cargos.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
