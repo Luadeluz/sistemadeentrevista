@@ -2,6 +2,8 @@
 let entrevistas = JSON.parse(localStorage.getItem('entrevistas')) || [];
 let cargoSelecionado = null;
 let entrevistaAtual = null;
+let ultimoItemExcluido = null;
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbziYqw4CANDC_waumX9zffeuNg2PbB3wJ_y5dI3YTN-2-tjXEBdrD922jUVQvzRfecjdw/exec'; // ⚠️ COLE A URL DO SEU SCRIPT DO GOOGLE AQUI (PASSO 9)
 
 // Inicialização do sistema
 document.addEventListener('DOMContentLoaded', function() {
@@ -14,8 +16,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function inicializarSistema() {
     // Configurar data atual
-    const hoje = new Date().toISOString().split('T')[0];
-    document.getElementById('dataEntrevista').value = hoje;
+    const data = new Date();
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+    document.getElementById('dataEntrevista').value = `${ano}-${mes}-${dia}`;
     
     // Carregar cargos no select
     carregarCargosSelect();
@@ -341,6 +346,9 @@ function salvarEntrevista() {
     entrevistas.push(entrevistaAtual);
     localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
     
+    // Enviar backup para o Google Sheets
+    enviarParaGoogleSheets(entrevistaAtual);
+    
     localStorage.removeItem('rascunhoEntrevista'); // Limpar rascunho
     // Limpar formulário
     limparFormulario();
@@ -415,7 +423,7 @@ function agendarGoogleCalendar() {
     };
 
     const dates = `${formatGoogleDate(dataInicio)}/${formatGoogleDate(dataFim)}`;
-    const titulo = encodeURIComponent(`VAGA - ${nome}`);
+    const titulo = encodeURIComponent(`${cargo.nome} - ${nome}`);
     const detalhes = encodeURIComponent(`Vaga no InHire: ${vagaInhire || 'N/A'}\nEntrevistador: ${entrevistador}\nCargo: ${cargo.nome}`);
     const location = encodeURIComponent(local === 'online' ? 'Google Meet / Online' : 'Presencial');
 
@@ -454,6 +462,9 @@ function salvarAgendamento() {
 
     entrevistas.push(agendamento);
     localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+    
+    // Enviar backup para o Google Sheets
+    enviarParaGoogleSheets(agendamento);
     
     mostrarMensagem('📅 Agendamento salvo com sucesso!', 'success');
     limparFormulario();
@@ -578,7 +589,11 @@ function carregarAgenda() {
                 ${itens.map((item, idx) => `
                     <div class="agenda-item">
                         <div><span class="agenda-hora">${item.horaEntrevista || '??:??'}</span> <strong>${item.candidatoNome}</strong> - ${item.cargoNome}</div>
-                        <button class="btn btn-small" onclick="editarEntrevista(${entrevistas.indexOf(item)})">▶️ Iniciar/Ver</button>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn btn-small btn-secondary" onclick="mostrarEdicaoAgendamento(${entrevistas.indexOf(item)})">✏️ Editar</button>
+                            <button class="btn btn-small" onclick="editarEntrevista(${entrevistas.indexOf(item)})">▶️ Iniciar</button>
+                            <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${entrevistas.indexOf(item)})">🗑️ Excluir</button>
+                        </div>
                     </div>
                 `).join('')}
             </div>
@@ -586,6 +601,98 @@ function carregarAgenda() {
     });
 
     container.innerHTML = html;
+}
+
+function mostrarEdicaoAgendamento(index) {
+    const entrevista = entrevistas[index];
+    const container = document.getElementById('agendaContainer');
+    
+    // Gerar opções de cargo
+    const cargoOptions = cargos.map(c => 
+        `<option value="${c.id}" ${c.id === entrevista.cargo ? 'selected' : ''}>${c.nome}</option>`
+    ).join('');
+
+    container.innerHTML = `
+        <div class="card-edicao" style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            <h3 style="color: #6a0dad; margin-bottom: 20px; border-bottom: 2px solid #f0f0ff; padding-bottom: 10px;">
+                ✏️ Editar Agendamento
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Nome do Candidato</label>
+                    <input type="text" id="editNome" value="${entrevista.candidatoNome}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+                
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Cargo</label>
+                    <select id="editCargo" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        ${cargoOptions}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Data</label>
+                    <input type="date" id="editData" value="${entrevista.dataEntrevista}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Horário</label>
+                    <input type="time" id="editHora" value="${entrevista.horaEntrevista || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Entrevistador</label>
+                    <input type="text" id="editEntrevistador" value="${entrevista.entrevistador || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Local / Link</label>
+                    <select id="editLocal" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <option value="online" ${entrevista.localEntrevista === 'online' ? 'selected' : ''}>Online (Google Meet)</option>
+                        <option value="presencial" ${entrevista.localEntrevista === 'presencial' ? 'selected' : ''}>Presencial</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Link da Vaga (InHire)</label>
+                    <input type="text" id="editVagaInhire" value="${entrevista.vagaInhire || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+            </div>
+
+            <div style="margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="carregarAgenda()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button onclick="salvarEdicaoAgendamento(${index})" style="padding: 10px 20px; background: #6a0dad; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    💾 Salvar Alterações
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function salvarEdicaoAgendamento(index) {
+    const entrevista = entrevistas[index];
+    const cargoId = document.getElementById('editCargo').value;
+    const cargoObj = cargos.find(c => c.id === cargoId);
+
+    entrevista.candidatoNome = document.getElementById('editNome').value;
+    entrevista.cargo = cargoId;
+    entrevista.cargoNome = cargoObj ? cargoObj.nome : entrevista.cargoNome;
+    entrevista.dataEntrevista = document.getElementById('editData').value;
+    entrevista.horaEntrevista = document.getElementById('editHora').value;
+    entrevista.entrevistador = document.getElementById('editEntrevistador').value;
+    entrevista.localEntrevista = document.getElementById('editLocal').value;
+    entrevista.vagaInhire = document.getElementById('editVagaInhire').value;
+
+    localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+    
+    // Enviar atualização para o Google Sheets
+    enviarParaGoogleSheets(entrevista);
+    
+    mostrarMensagem('✅ Agendamento atualizado!', 'success');
+    carregarAgenda();
 }
 
 // Histórico de Entrevistas
@@ -636,6 +743,7 @@ function carregarHistoricoEntrevistas(filtro = '') {
     
     let html = '';
     entrevistasFiltradas.forEach((entrevista, index) => {
+        const realIndex = entrevistas.indexOf(entrevista);
         const dataFormatada = formatarData(entrevista.dataEntrevista);
         const statusClass = `status-${entrevista.status}`;
         const statusText = {
@@ -678,16 +786,16 @@ function carregarHistoricoEntrevistas(filtro = '') {
                 </div>
                 
                 <div class="acoes-entrevista">
-                    <button class="btn btn-small" onclick="verDetalhesEntrevista(${index})">
+                    <button class="btn btn-small" onclick="verDetalhesEntrevista(${realIndex})">
                         👁️ Detalhes
                     </button>
-                    <button class="btn btn-small btn-pdf" onclick="gerarRelatorioEntrevista(${index})">
+                    <button class="btn btn-small btn-pdf" onclick="gerarRelatorioEntrevista(${realIndex})">
                         📄 PDF
                     </button>
-                    <button class="btn btn-small btn-secondary" onclick="editarEntrevista(${index})">
+                    <button class="btn btn-small btn-secondary" onclick="editarEntrevista(${realIndex})">
                         ✏️ Editar
                     </button>
-                    <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${index})">
+                    <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${realIndex})">
                         🗑️ Excluir
                     </button>
                 </div>
@@ -773,6 +881,9 @@ function gerarRelatorioEntrevista(index) {
 function editarEntrevista(index) {
     const entrevista = entrevistas[index];
     
+    // Definir como entrevista atual para permitir edição e salvamento direto
+    entrevistaAtual = entrevista;
+
     // Preencher formulário com dados da entrevista
     document.getElementById('candidatoNome').value = entrevista.candidatoNome;
     document.getElementById('cargo').value = entrevista.cargo;
@@ -828,13 +939,33 @@ function editarEntrevista(index) {
 
 function excluirEntrevista(index) {
     mostrarConfirmacao('Tem certeza que deseja excluir esta entrevista?', () => {
+        ultimoItemExcluido = entrevistas[index];
         entrevistas.splice(index, 1);
         localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
         carregarHistoricoEntrevistas();
+        carregarAgenda();
         atualizarEstatisticas();
         atualizarSelectRelatorio();
-        mostrarMensagem('✅ Entrevista excluída com sucesso!', 'success');
+        mostrarMensagem(`
+            ✅ Entrevista excluída! 
+            <button onclick="desfazerExclusao()" style="background:white; border:none; padding:2px 8px; border-radius:4px; margin-left:10px; cursor:pointer; color:#333; font-weight:bold;">
+                ↩️ Desfazer
+            </button>
+        `, 'success');
     });
+}
+
+function desfazerExclusao() {
+    if (ultimoItemExcluido) {
+        entrevistas.push(ultimoItemExcluido);
+        localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+        ultimoItemExcluido = null;
+        carregarHistoricoEntrevistas();
+        carregarAgenda();
+        atualizarEstatisticas();
+        atualizarSelectRelatorio();
+        mostrarMensagem('✅ Ação desfeita com sucesso!', 'success');
+    }
 }
 
 // Relatório PDF
@@ -1450,8 +1581,31 @@ function inicializarTema() {
 // Funções auxiliares
 function formatarData(dataString) {
     if (!dataString) return 'N/A';
-    const data = new Date(dataString);
-    return data.toLocaleDateString('pt-BR');
+    
+    // Se tiver horário (ISO), converte para data local
+    if (dataString.includes('T')) {
+        const data = new Date(dataString);
+        return data.toLocaleDateString('pt-BR');
+    }
+    
+    // Se for apenas data (YYYY-MM-DD), faz split para evitar problemas de fuso horário
+    const [ano, mes, dia] = dataString.split('-');
+    return `${dia}/${mes}/${ano}`;
+}
+
+function enviarParaGoogleSheets(dados) {
+    if (!GOOGLE_SCRIPT_URL) return;
+    
+    fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+            'Content-Type': 'text/plain'
+        },
+        body: JSON.stringify(dados)
+    })
+    .then(() => console.log('Dados enviados para o Google Sheets'))
+    .catch(erro => console.error('Erro ao enviar para Sheets:', erro));
 }
 
 function mostrarMensagem(texto, tipo = 'info') {
