@@ -1,5 +1,10 @@
 // Sistema de Entrevistas - Script Principal
-let entrevistas = JSON.parse(localStorage.getItem('entrevistas')) || [];
+let entrevistas = [];
+try {
+    entrevistas = JSON.parse(localStorage.getItem('entrevistas')) || [];
+} catch (e) {
+    entrevistas = [];
+}
 let cargoSelecionado = null;
 let entrevistaAtual = null;
 let ultimoItemExcluido = null;
@@ -28,6 +33,36 @@ function inicializarSistema() {
     
     // Configurar sistema de abas
     configurarAbas();
+
+    // --- INJEÇÃO DE CAMPOS NOVOS (Link e Botões de Relatório) ---
+    // 1. Campo de Link da Reunião no formulário principal
+    const localSelect = document.getElementById('localEntrevista');
+    if (localSelect && !document.getElementById('linkReuniao')) {
+        const container = document.createElement('div');
+        container.className = 'form-group';
+        container.innerHTML = `
+            <label style="display:block; margin-bottom:5px; margin-top:10px; font-weight:bold; color:#555;">Link da Reunião (Google Meet)</label>
+            <input type="text" id="linkReuniao" placeholder="Cole o link aqui..." style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+        `;
+        localSelect.parentElement.insertAdjacentElement('afterend', container);
+    }
+
+    // 2. Botões de Relatórios Gerais na aba Relatório
+    const tabRelatorio = document.getElementById('tab-relatorio');
+    if (tabRelatorio && !document.getElementById('botoesRelatoriosGerais')) {
+        const div = document.createElement('div');
+        div.id = 'botoesRelatoriosGerais';
+        div.innerHTML = `
+            <div style="background:white; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                <h3 style="margin-top:0; color:#6a0dad; border-bottom:1px solid #eee; padding-bottom:10px;">📊 Relatórios Gerais</h3>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+                    <button class="btn" onclick="gerarRelatorioListaPDF('agendadas')" style="background:#e8f0fe; color:#1967d2; border:1px solid #aecbfa;">📅 Baixar Lista de Agendadas</button>
+                    <button class="btn" onclick="gerarRelatorioListaPDF('realizadas')" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb;">✅ Baixar Lista de Realizadas</button>
+                </div>
+            </div>
+        `;
+        tabRelatorio.insertBefore(div, tabRelatorio.firstChild);
+    }
 }
 
 function carregarDados() {
@@ -80,7 +115,10 @@ function configurarEventos() {
     });
 
     // Toggle Dark Mode
-    document.getElementById('toggleDarkMode').addEventListener('click', alternarTema);
+    const btnToggleTheme = document.getElementById('toggleDarkMode');
+    if (btnToggleTheme) {
+        btnToggleTheme.addEventListener('click', alternarTema);
+    }
     
     // Seleção de entrevista para relatório
     document.getElementById('selecionarEntrevistaRelatorio').addEventListener('change', function() {
@@ -269,6 +307,7 @@ function iniciarEntrevista() {
         vagaInhire: document.getElementById('vagaInhire').value,
         entrevistador: document.getElementById('entrevistador').value,
         localEntrevista: document.getElementById('localEntrevista').value,
+        linkReuniao: document.getElementById('linkReuniao') ? document.getElementById('linkReuniao').value : '',
         dataRegistro: new Date().toISOString()
     };
     
@@ -378,6 +417,7 @@ function limparFormulario() {
     document.getElementById('dataEntrevista').value = hoje;
     document.getElementById('horaEntrevista').value = '';
     document.getElementById('vagaInhire').value = '';
+    if(document.getElementById('linkReuniao')) document.getElementById('linkReuniao').value = '';
     
     cargoSelecionado = null;
     entrevistaAtual = null;
@@ -430,6 +470,14 @@ function agendarGoogleCalendar() {
     const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${titulo}&dates=${dates}&details=${detalhes}&location=${location}`;
     
     window.open(url, '_blank');
+
+    // Pedir o link gerado
+    setTimeout(() => {
+        const link = prompt("🔗 Se você gerou um link de reunião (Google Meet), cole-o aqui para salvar no relatório:");
+        if (link && document.getElementById('linkReuniao')) {
+            document.getElementById('linkReuniao').value = link;
+        }
+    }, 1000);
 }
 
 function salvarAgendamento() {
@@ -441,6 +489,7 @@ function salvarAgendamento() {
         vagaInhire: document.getElementById('vagaInhire').value,
         entrevistador: document.getElementById('entrevistador').value,
         localEntrevista: document.getElementById('localEntrevista').value,
+        linkReuniao: document.getElementById('linkReuniao') ? document.getElementById('linkReuniao').value : '',
         dataRegistro: new Date().toISOString()
     };
 
@@ -524,6 +573,7 @@ function restaurarRascunho(rascunho) {
     document.getElementById('dataEntrevista').value = rascunho.dadosBasicos.dataEntrevista;
     document.getElementById('horaEntrevista').value = rascunho.dadosBasicos.horaEntrevista || '';
     document.getElementById('vagaInhire').value = rascunho.dadosBasicos.vagaInhire || '';
+    if(document.getElementById('linkReuniao') && rascunho.dadosBasicos.linkReuniao) document.getElementById('linkReuniao').value = rascunho.dadosBasicos.linkReuniao;
     document.getElementById('cargo').value = rascunho.dadosBasicos.cargo;
     
     // Disparar evento de mudança de cargo para carregar estrutura
@@ -654,6 +704,11 @@ function mostrarEdicaoAgendamento(index) {
                     </select>
                 </div>
                 
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Link Reunião</label>
+                    <input type="text" id="editLinkReuniao" value="${entrevista.linkReuniao || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+
                 <div class="form-group" style="grid-column: 1 / -1;">
                     <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Link da Vaga (InHire)</label>
                     <input type="text" id="editVagaInhire" value="${entrevista.vagaInhire || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
@@ -684,6 +739,7 @@ function salvarEdicaoAgendamento(index) {
     entrevista.horaEntrevista = document.getElementById('editHora').value;
     entrevista.entrevistador = document.getElementById('editEntrevistador').value;
     entrevista.localEntrevista = document.getElementById('editLocal').value;
+    entrevista.linkReuniao = document.getElementById('editLinkReuniao').value;
     entrevista.vagaInhire = document.getElementById('editVagaInhire').value;
 
     localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
@@ -736,13 +792,11 @@ function carregarHistoricoEntrevistas(filtro = '') {
     // Ordenar por data (mais recente primeiro)
     entrevistasFiltradas.sort((a, b) => new Date(b.dataRegistro) - new Date(a.dataRegistro));
     
-    if (entrevistasFiltradas.length === 0) {
-        container.innerHTML = '<div class="no-data">Nenhuma entrevista encontrada.</div>';
-        return;
-    }
-    
-    let html = '';
-    entrevistasFiltradas.forEach((entrevista, index) => {
+    // Separar em Agendadas e Realizadas
+    const agendadas = entrevistasFiltradas.filter(e => e.status === 'agendado');
+    const realizadas = entrevistasFiltradas.filter(e => e.status !== 'agendado');
+
+    const gerarCard = (entrevista) => {
         const realIndex = entrevistas.indexOf(entrevista);
         const dataFormatada = formatarData(entrevista.dataEntrevista);
         const statusClass = `status-${entrevista.status}`;
@@ -754,7 +808,7 @@ function carregarHistoricoEntrevistas(filtro = '') {
             'agendado': '📅 Agendado'
         }[entrevista.status] || entrevista.status;
         
-        html += `
+        return `
             <div class="entrevista-item ${entrevista.status}">
                 <div class="entrevista-header">
                     <div class="candidato-info">
@@ -801,9 +855,24 @@ function carregarHistoricoEntrevistas(filtro = '') {
                 </div>
             </div>
         `;
-    });
-    
-    container.innerHTML = html;
+    };
+
+    container.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
+            <div>
+                <h3 style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+                    📅 Agendadas (${agendadas.length})
+                </h3>
+                ${agendadas.length ? agendadas.map(gerarCard).join('') : '<div class="no-data">Nenhum agendamento encontrado.</div>'}
+            </div>
+            <div>
+                <h3 style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+                    ✅ Realizadas / Finalizadas (${realizadas.length})
+                </h3>
+                ${realizadas.length ? realizadas.map(gerarCard).join('') : '<div class="no-data">Nenhuma entrevista realizada encontrada.</div>'}
+            </div>
+        </div>
+    `;
 }
 
 function verDetalhesEntrevista(index) {
@@ -889,6 +958,7 @@ function editarEntrevista(index) {
     document.getElementById('cargo').value = entrevista.cargo;
     document.getElementById('horaEntrevista').value = entrevista.horaEntrevista || '';
     document.getElementById('vagaInhire').value = entrevista.vagaInhire || '';
+    if(document.getElementById('linkReuniao')) document.getElementById('linkReuniao').value = entrevista.linkReuniao || '';
     
     // Selecionar o cargo
     setTimeout(() => {
@@ -1296,6 +1366,70 @@ async function gerarPDF() {
     mostrarMensagem('📄 PDF gerado com sucesso!', 'success');
 }
 
+async function gerarRelatorioListaPDF(tipo) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const titulo = tipo === 'agendadas' ? 'RELATÓRIO DE ENTREVISTAS AGENDADAS' : 'RELATÓRIO DE ENTREVISTAS REALIZADAS';
+    
+    // Header
+    doc.setFillColor(138, 43, 226);
+    doc.rect(0, 0, 210, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text(titulo, 105, 15, { align: 'center' });
+    
+    let y = 35;
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    
+    const lista = entrevistas.filter(e => 
+        tipo === 'agendadas' ? e.status === 'agendado' : e.status !== 'agendado'
+    ).sort((a, b) => new Date(b.dataEntrevista) - new Date(a.dataEntrevista));
+
+    if (lista.length === 0) {
+        doc.text("Nenhum registro encontrado.", 10, y);
+    } else {
+        lista.forEach((item, i) => {
+            if (y > 270) { doc.addPage(); y = 20; }
+            
+            const data = formatarData(item.dataEntrevista);
+            
+            if (tipo === 'agendadas') {
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${data} - ${item.horaEntrevista || '??:??'} | ${item.candidatoNome}`, 10, y);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`${item.cargoNome}`, 10, y + 5);
+                if (item.linkReuniao) {
+                    doc.setTextColor(0, 0, 255);
+                    doc.text(`Link: ${item.linkReuniao}`, 10, y + 10);
+                    doc.setTextColor(0, 0, 0);
+                    y += 15;
+                } else {
+                    doc.text(`Local: ${item.localEntrevista}`, 10, y + 10);
+                    y += 15;
+                }
+            } else {
+                const status = item.status.toUpperCase();
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${data} | ${item.candidatoNome}`, 10, y);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`${item.cargoNome} - ${status}`, 10, y + 5);
+                if (item.mediaAvaliacao) {
+                    doc.text(`Nota: ${item.mediaAvaliacao}/5`, 10, y + 10);
+                }
+                y += 15;
+            }
+            
+            // Separator
+            doc.setDrawColor(200);
+            doc.line(10, y-2, 200, y-2);
+            y += 5;
+        });
+    }
+    
+    doc.save(`Relatorio_${tipo}_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
 function imprimirRelatorio() {
     const preview = document.getElementById('relatorioPreview');
     const printWindow = window.open('', '_blank');
@@ -1408,8 +1542,31 @@ function imprimirRelatorio() {
 // Estatísticas
 function atualizarEstatisticas() {
     // Totais
-    document.getElementById('totalEntrevistas').textContent = entrevistas.length;
+    const total = entrevistas.length;
+    const agendados = entrevistas.filter(e => e.status === 'agendado').length;
+    const realizados = total - agendados;
     
+    document.getElementById('totalEntrevistas').textContent = total;
+    
+    // Tentar mostrar agendados se o elemento existir, ou injetar visualmente (opcional)
+    const elAgendados = document.getElementById('totalAgendados');
+    if (elAgendados) {
+        elAgendados.textContent = agendados;
+    } else {
+        // Se não existir o card específico, adicionamos a info ao lado do total por enquanto
+        const elTotal = document.getElementById('totalEntrevistas');
+        if (elTotal && !document.getElementById('infoAgendadosExtra')) {
+            const span = document.createElement('div');
+            span.id = 'infoAgendadosExtra';
+            span.style.fontSize = '0.5em';
+            span.style.opacity = '0.8';
+            span.innerHTML = `(📅 ${agendados} na fila)`;
+            elTotal.appendChild(span);
+        } else if (document.getElementById('infoAgendadosExtra')) {
+            document.getElementById('infoAgendadosExtra').innerHTML = `(📅 ${agendados} na fila)`;
+        }
+    }
+
     const aprovados = entrevistas.filter(e => e.status === 'aprovado').length;
     const reprovados = entrevistas.filter(e => e.status === 'reprovado').length;
     const faltou = entrevistas.filter(e => e.status === 'faltou').length;
@@ -1418,7 +1575,9 @@ function atualizarEstatisticas() {
     document.getElementById('totalReprovados').textContent = reprovados;
     document.getElementById('totalFaltou').textContent = faltou;
     
-    const taxa = entrevistas.length > 0 ? Math.round((aprovados / entrevistas.length) * 100) : 0;
+    // Taxa baseada apenas no que foi REALIZADO (exclui agendados)
+    const baseCalculo = realizados > 0 ? realizados : 0;
+    const taxa = baseCalculo > 0 ? Math.round((aprovados / baseCalculo) * 100) : 0;
     document.getElementById('taxaAprovacao').textContent = `${taxa}%`;
     
     // Gráfico de cargos
@@ -1436,30 +1595,48 @@ function atualizarGraficoCargos() {
     if (!container) return;
     
     // Contar entrevistas por cargo
-    const contagem = {};
+    // Separar dados
+    const contagemRealizados = {};
+    const contagemAgendados = {};
+    
     entrevistas.forEach(entrevista => {
-        contagem[entrevista.cargoNome] = (contagem[entrevista.cargoNome] || 0) + 1;
+        if (entrevista.status === 'agendado') {
+            contagemAgendados[entrevista.cargoNome] = (contagemAgendados[entrevista.cargoNome] || 0) + 1;
+        } else {
+            contagemRealizados[entrevista.cargoNome] = (contagemRealizados[entrevista.cargoNome] || 0) + 1;
+        }
     });
     
-    const cargos = Object.keys(contagem);
-    const valores = Object.values(contagem);
+    const gerarBarras = (dados, titulo, cor) => {
+        const cargos = Object.keys(dados);
+        const valores = Object.values(dados);
+        
+        if (cargos.length === 0) return `<div style="padding:10px; color:#999; font-size:0.9em;">Sem dados de ${titulo.toLowerCase()}</div>`;
+        
+        const maxValor = Math.max(...valores);
+        let html = `<h4 style="margin:10px 0 5px 0; color:#666; font-size:0.9em; border-bottom:1px solid #eee;">${titulo}</h4><div style="display:flex; align-items:flex-end; height:100px; gap:10px; margin-bottom:15px;">`;
+        
+        cargos.forEach((cargo, index) => {
+            const altura = maxValor > 0 ? (valores[index] / maxValor) * 100 : 10;
+            html += `
+                <div class="chart-bar" style="height: ${altura}%; background:${cor}; min-width:40px;" title="${cargo}: ${valores[index]}">
+                    <div class="chart-label" style="font-size:0.7em;">${cargo.split(' ')[0]}</div>
+                    <div style="text-align:center; font-weight:bold; font-size:0.8em;">${valores[index]}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        return html;
+    };
     
-    if (cargos.length === 0) {
+    if (entrevistas.length === 0) {
         container.innerHTML = '<div class="no-data">Nenhuma entrevista para exibir</div>';
         return;
     }
     
-    const maxValor = Math.max(...valores);
-    
     let html = '';
-    cargos.forEach((cargo, index) => {
-        const altura = maxValor > 0 ? (valores[index] / maxValor) * 100 : 10;
-        html += `
-            <div class="chart-bar" style="height: ${altura}%;" title="${cargo}: ${valores[index]} entrevista(s)">
-                <div class="chart-label">${cargo.split(' ')[0]}</div>
-            </div>
-        `;
-    });
+    html += gerarBarras(contagemRealizados, '✅ Realizados', '#8a2be2'); // Roxo original
+    html += gerarBarras(contagemAgendados, '📅 Agendados', '#aecbfa'); // Azul claro
     
     container.innerHTML = html;
 }
@@ -1469,30 +1646,50 @@ function atualizarGraficoMensal() {
     if (!container) return;
     
     // Agrupar por mês (últimos 6 meses)
-    const meses = {};
+    // Preparar meses (últimos 6)
+    const chavesMeses = [];
     const hoje = new Date();
     
     for (let i = 5; i >= 0; i--) {
         const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
         const key = `${d.getMonth() + 1}/${d.getFullYear()}`;
-        meses[key] = 0;
+        chavesMeses.push(`${d.getMonth() + 1}/${d.getFullYear()}`);
     }
     
+    const dadosRealizados = {};
+    const dadosAgendados = {};
+    chavesMeses.forEach(k => { dadosRealizados[k] = 0; dadosAgendados[k] = 0; });
+
     entrevistas.forEach(entrevista => {
         const d = new Date(entrevista.dataEntrevista);
         const key = `${d.getMonth() + 1}/${d.getFullYear()}`;
-        if (meses.hasOwnProperty(key)) meses[key]++;
+        
+        if (dadosRealizados.hasOwnProperty(key)) {
+            if (entrevista.status === 'agendado') {
+                dadosAgendados[key]++;
+            } else {
+                dadosRealizados[key]++;
+            }
+        }
     });
     
-    const labels = Object.keys(meses);
-    const valores = Object.values(meses);
-    const maxValor = Math.max(...valores, 1);
+    const gerarGraficoLinha = (dados, titulo, cor) => {
+        const valores = Object.values(dados);
+        const maxValor = Math.max(...valores, 1);
+        let html = `<h4 style="margin:10px 0 5px 0; color:#666; font-size:0.9em; border-bottom:1px solid #eee;">${titulo}</h4><div style="display:flex; align-items:flex-end; height:100px; gap:10px; margin-bottom:15px;">`;
+        
+        Object.keys(dados).forEach((label, index) => {
+            const altura = (valores[index] / maxValor) * 100;
+            html += `<div class="chart-bar" style="height: ${Math.max(altura, 5)}%; background:${cor};" title="${label}: ${valores[index]}"><div class="chart-label">${label.split('/')[0]}</div></div>`;
+        });
+        html += '</div>';
+        return html;
+    };
     
     let html = '';
-    labels.forEach((label, index) => {
-        const altura = (valores[index] / maxValor) * 100;
-        html += `<div class="chart-bar" style="height: ${Math.max(altura, 5)}%;" title="${label}: ${valores[index]}"><div class="chart-label">${label.split('/')[0]}</div></div>`;
-    });
+    html += gerarGraficoLinha(dadosRealizados, '✅ Realizados', '#8a2be2');
+    html += gerarGraficoLinha(dadosAgendados, '📅 Agendados', '#aecbfa');
+    
     container.innerHTML = html;
 }
 
@@ -1867,6 +2064,49 @@ style.textContent = `
     
     .item-status {
         font-size: 1.2rem;
+    }
+    
+    /* Dark Mode Styles */
+    body.dark-mode {
+        background-color: #121212 !important;
+        color: #e0e0e0 !important;
+    }
+    
+    body.dark-mode .container,
+    body.dark-mode header,
+    body.dark-mode .sidebar,
+    body.dark-mode .card,
+    body.dark-mode .modal-content,
+    body.dark-mode .entrevista-item,
+    body.dark-mode .agenda-item,
+    body.dark-mode .card-edicao,
+    body.dark-mode #botoesRelatoriosGerais > div {
+        background-color: #1e1e1e !important;
+        color: #e0e0e0 !important;
+        border-color: #333 !important;
+        box-shadow: 0 2px 5px rgba(255,255,255,0.05) !important;
+    }
+    
+    body.dark-mode input,
+    body.dark-mode select,
+    body.dark-mode textarea {
+        background-color: #2d2d2d !important;
+        color: #fff !important;
+        border: 1px solid #444 !important;
+    }
+    
+    body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode h4, 
+    body.dark-mode strong, body.dark-mode label, body.dark-mode .pergunta-texto {
+        color: #bb86fc !important;
+    }
+    
+    body.dark-mode .resposta-item,
+    body.dark-mode .avaliacao-item,
+    body.dark-mode .info-item,
+    body.dark-mode .item-simples,
+    body.dark-mode .avaliacao-preview {
+        background-color: #252525 !important;
+        border-color: #444 !important;
     }
 `;
 document.head.appendChild(style);
