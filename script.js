@@ -449,6 +449,7 @@ function executarSalvamento(btnSalvar, textoOriginal) {
     
     // Coletar status
     const statusRadio = document.querySelector('input[name="status"]:checked');
+    let statusFinal = statusRadio ? statusRadio.value : 'analise';
     // Se aprovado na triagem, muda para status específico de fluxo
     if (statusFinal === 'aprovado') statusFinal = 'aprovado_triagem';
     
