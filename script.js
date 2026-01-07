@@ -408,6 +408,15 @@ function salvarEntrevista() {
 }
 
 function executarSalvamento(btnSalvar, textoOriginal) {
+    // Proteção contra erro de cargo não selecionado (comum em edições antigas)
+    if (!cargoSelecionado) {
+        const cargoId = document.getElementById('cargo').value;
+        cargoSelecionado = cargos.find(c => c.id === cargoId);
+        if (!cargoSelecionado) {
+            throw new Error("Cargo inválido ou não selecionado. Selecione o cargo novamente.");
+        }
+    }
+
     // Coletar respostas das perguntas
     const respostas = [];
     document.querySelectorAll('.resposta-pergunta').forEach(textarea => {
@@ -456,7 +465,14 @@ function executarSalvamento(btnSalvar, textoOriginal) {
     entrevistaAtual.status = statusFinal;
     
     // Salvar no banco de dados
-    entrevistas.push(entrevistaAtual);
+    // VERIFICAÇÃO DE DUPLICIDADE: Se já existe ID, atualiza. Se não, cria novo.
+    const indexExistente = entrevistas.findIndex(e => e.id === entrevistaAtual.id);
+    if (indexExistente !== -1) {
+        entrevistas[indexExistente] = entrevistaAtual;
+    } else {
+        entrevistas.push(entrevistaAtual);
+    }
+    
     localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
     
     // Enviar backup para o Google Sheets
@@ -970,7 +986,8 @@ function carregarHistoricoEntrevistas(filtro = '') {
         }
 
         // Botão Agendar Gerência (para aprovados na triagem)
-        if (entrevista.status === 'aprovado_triagem') {
+        // CORREÇÃO: Aceitar tanto 'aprovado_triagem' (novo) quanto 'aprovado' (antigo)
+        if (entrevista.status === 'aprovado_triagem' || entrevista.status === 'aprovado') {
             botoesAcao += `
                 <button class="btn btn-small btn-primary" onclick="abrirModalGerencia(${realIndex})">
                     📅 Agendar Gerência
