@@ -16,6 +16,7 @@ const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbziYqw4CANDC_
 
 // Inicialização do sistema
 document.addEventListener('DOMContentLoaded', function() {
+    verificarAcesso(); // Inicia a proteção de login
     inicializarSistema();
     carregarDados();
     configurarEventos();
@@ -2114,8 +2115,15 @@ function atualizarGraficoMensal() {
     chavesMeses.forEach(k => { dadosRealizados[k] = 0; dadosAgendados[k] = 0; });
 
     entrevistas.forEach(entrevista => {
-        const d = new Date(entrevista.dataEntrevista);
-        const key = `${d.getMonth() + 1}/${d.getFullYear()}`;
+        // Correção: Parse manual da data para evitar problemas de fuso horário (UTC vs Local)
+        let key;
+        if (entrevista.dataEntrevista && typeof entrevista.dataEntrevista === 'string' && entrevista.dataEntrevista.includes('-')) {
+            const [ano, mes] = entrevista.dataEntrevista.split('-');
+            key = `${parseInt(mes)}/${ano}`;
+        } else {
+            const d = new Date(entrevista.dataEntrevista);
+            key = `${d.getMonth() + 1}/${d.getFullYear()}`;
+        }
         
         if (dadosRealizados.hasOwnProperty(key)) {
             if (entrevista.status === 'agendado') {
@@ -2133,7 +2141,11 @@ function atualizarGraficoMensal() {
         
         Object.keys(dados).forEach((label, index) => {
             const altura = (valores[index] / maxValor) * 100;
-            html += `<div class="chart-bar" style="height: ${Math.max(altura, 5)}%; background:${cor};" title="${label}: ${valores[index]}"><div class="chart-label">${label.split('/')[0]}</div></div>`;
+            // Correção: Adicionado flex:1 e min-width para garantir visualização das barras
+            html += `<div class="chart-bar" style="height: ${Math.max(altura, 5)}%; background:${cor}; flex:1; min-width:20px; position:relative; border-radius:3px 3px 0 0;" title="${label}: ${valores[index]}">
+                <div style="position:absolute; top:-15px; width:100%; text-align:center; font-size:0.7em; color:#666; font-weight:bold;">${valores[index] > 0 ? valores[index] : ''}</div>
+                <div class="chart-label" style="position:absolute; bottom:2px; width:100%; text-align:center; font-size:0.7em; color:${altura > 20 ? 'white' : '#333'};">${label.split('/')[0]}</div>
+            </div>`;
         });
         html += '</div>';
         return html;
@@ -2813,4 +2825,97 @@ function getDragAfterElement(container, y) {
             return closest;
         }
     }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+// --- Sistema de Login Simples (Cortina de Proteção) ---
+function verificarAcesso() {
+    // Verifica se já está autenticado na sessão atual do navegador
+    if (sessionStorage.getItem('autenticado') === 'true') {
+        return;
+    }
+
+    // Cria a cortina de bloqueio visual
+    const cortina = document.createElement('div');
+    cortina.id = 'cortinaLogin';
+    cortina.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #f4f4f9; z-index: 10000; display: flex;
+        justify-content: center; align-items: center; font-family: Arial, sans-serif;
+    `;
+
+    // Conteúdo do cartão de login
+    cortina.innerHTML = `
+        <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 350px; width: 90%;">
+            <div style="font-size: 40px; margin-bottom: 15px;">🔒</div>
+            <h2 style="color: #6a0dad; margin-top: 0; margin-bottom: 10px;">Acesso Restrito</h2>
+            <p style="color: #666; margin-bottom: 25px; font-size: 14px;">Este sistema é protegido. Por favor, identifique-se.</p>
+            
+            <input type="password" id="inputSenhaLogin" placeholder="Digite a senha..." style="
+                width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; 
+                border-radius: 6px; box-sizing: border-box; font-size: 16px; outline: none;
+                transition: border 0.3s;">
+            
+            <button id="btnEntrarLogin" style="
+                width: 100%; padding: 12px; background: #6a0dad; color: white; border: none; 
+                border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px;
+                transition: background 0.3s;">ENTRAR</button>
+            
+            <p id="msgErroLogin" style="color: #dc3545; margin-top: 15px; display: none; font-size: 14px; font-weight: bold;">Senha incorreta!</p>
+        </div>
+    `;
+
+    document.body.appendChild(cortina);
+    document.body.style.overflow = 'hidden'; // Impede rolagem da página de fundo
+
+    // Foco no input
+    setTimeout(() => document.getElementById('inputSenhaLogin').focus(), 100);
+
+    // --- CONFIGURAÇÃO DA SENHA ---
+    // Hash SHA-256 para a senha: "Rebeca2708"
+    const HASH_SENHA_CORRETA = "5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5";
+
+    const tentarLogin = async () => {
+        const input = document.getElementById('inputSenhaLogin');
+        const senha = input.value;
+        const msgErro = document.getElementById('msgErroLogin');
+        const btn = document.getElementById('btnEntrarLogin');
+
+        if (!senha) return;
+
+        btn.textContent = 'Verificando...';
+        btn.style.opacity = '0.7';
+        
+        try {
+            const msgBuffer = new TextEncoder().encode(senha);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            if (hashHex === HASH_SENHA_CORRETA) {
+                sessionStorage.setItem('autenticado', 'true');
+                cortina.style.opacity = '0';
+                setTimeout(() => { cortina.remove(); document.body.style.overflow = 'auto'; }, 500);
+            } else {
+                throw new Error('Senha incorreta');
+            }
+        } catch (e) {
+            // Fallback simples para ambiente local se crypto falhar
+            if (senha === 'Rebeca2708') {
+                sessionStorage.setItem('autenticado', 'true');
+                cortina.style.opacity = '0';
+                setTimeout(() => { cortina.remove(); document.body.style.overflow = 'auto'; }, 500);
+            } else {
+                msgErro.style.display = 'block';
+                btn.textContent = 'ENTRAR';
+                btn.style.opacity = '1';
+                input.value = '';
+                input.focus();
+            }
+        }
+    };
+
+    document.getElementById('btnEntrarLogin').addEventListener('click', tentarLogin);
+    document.getElementById('inputSenhaLogin').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') tentarLogin();
+    });
 }
