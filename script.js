@@ -995,7 +995,11 @@ function carregarHistoricoEntrevistas(filtro = '') {
     }
     
     // Ordenar por data (mais recente primeiro)
-    entrevistasFiltradas.sort((a, b) => new Date(b.dataRegistro) - new Date(a.dataRegistro));
+    entrevistasFiltradas.sort((a, b) => {
+        const dateA = a.dataRegistro ? new Date(a.dataRegistro) : (a.dataEntrevista ? new Date(a.dataEntrevista) : new Date(0));
+        const dateB = b.dataRegistro ? new Date(b.dataRegistro) : (b.dataEntrevista ? new Date(b.dataEntrevista) : new Date(0));
+        return dateB - dateA;
+    });
     
     // Separar em Agendadas e Realizadas
     const agendadas = entrevistasFiltradas.filter(e => e.status === 'agendado');
@@ -2201,7 +2205,18 @@ function importarDados() {
             if (Array.isArray(dadosImportados)) {
                 entrevistas = dadosImportados;
                 localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+                
+                // Limpar filtros para garantir que os dados apareçam
+                ['filtroStatus', 'filtroCargoHistorico', 'filtroDataInicio', 'filtroDataFim', 'buscarEntrevista'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+
                 carregarDados();
+                
+                // Ir para a aba de histórico automaticamente
+                const tabHistorico = document.querySelector('[data-tab="historico"]');
+                if (tabHistorico) tabHistorico.click();
                 
                 // Enviar dados importados para o Google Sheets
                 mostrarMensagem(`📥 Restaurado! Enviando ${dadosImportados.length} registros para a planilha...`, 'info');
