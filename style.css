@@ -1017,6 +1017,45 @@ body.dark-mode .no-data {
     box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
 }
 
+/* Editor de Cargos */
+.lista-cargos-config {
+    display: grid;
+    gap: 15px;
+}
+
+.item-cargo-config {
+    background: #f8f5ff;
+    padding: 15px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #e6e6ff;
+}
+
+.item-cargo-config h4 {
+    margin: 0;
+    color: #6a0dad;
+}
+
+.pergunta-editor-item {
+    background: #f9f9f9;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #eee;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.pergunta-editor-inputs {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
 /* Responsividade */
 @media (max-width: 768px) {
     .tabs {

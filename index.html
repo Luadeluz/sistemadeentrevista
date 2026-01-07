@@ -320,6 +320,16 @@
                         <button class="btn btn-secondary" onclick="importarDados()">Restaurar Backup</button>
                     </div>
                 </div>
+
+                <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
+
+                <div class="card-header">
+                    <h2>🛠️ Editor de Cargos e Perguntas</h2>
+                    <button class="btn btn-primary btn-small" onclick="abrirModalCargo()">➕ Novo Cargo</button>
+                </div>
+                <div id="listaCargosConfig" class="lista-cargos-config">
+                    <!-- Lista carregada via JS -->
+                </div>
             </div>
         </div>
 
@@ -345,6 +355,55 @@
                 <div class="modal-footer">
                     <button class="btn btn-secondary" onclick="fecharModalConfirmacao()">Cancelar</button>
                     <button class="btn btn-danger" id="btnConfirmarAcao">Confirmar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL EDITOR DE CARGO -->
+        <div id="modalEditorCargo" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="tituloModalCargo">Editar Cargo</h3>
+                    <button class="close-modal" onclick="fecharModalCargo()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editCargoId">
+                    <div class="form-group">
+                        <label>Nome do Cargo *</label>
+                        <input type="text" id="editCargoNome" required placeholder="Ex: Vendedor Líder">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Categoria</label>
+                            <input type="text" id="editCargoCategoria" placeholder="Ex: Operacional">
+                        </div>
+                        <div class="form-group">
+                            <label>Duração Estimada</label>
+                            <input type="text" id="editCargoDuracao" placeholder="Ex: 30-45 minutos">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Salário</label>
+                        <input type="text" id="editCargoSalario" placeholder="Ex: R$ 1.800,00">
+                    </div>
+                    <div class="form-group">
+                        <label>Horário</label>
+                        <input type="text" id="editCargoHorario" placeholder="Ex: Seg a Sex 09h às 18h">
+                    </div>
+                    <div class="form-group">
+                        <label>Benefícios (separados por vírgula)</label>
+                        <input type="text" id="editCargoBeneficios" placeholder="VT, VR, Plano de Saúde">
+                    </div>
+                    
+                    <h4 style="margin: 20px 0 10px; color: #6a0dad; border-bottom: 1px solid #eee;">❓ Perguntas da Entrevista</h4>
+                    <div id="containerPerguntasEditor" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;">
+                        <!-- Perguntas dinâmicas -->
+                    </div>
+                    <button class="btn btn-secondary btn-small" onclick="adicionarPerguntaEditor()">➕ Adicionar Pergunta</button>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="fecharModalCargo()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="salvarCargoEditado()">💾 Salvar Cargo</button>
                 </div>
             </div>
         </div>

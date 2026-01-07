@@ -1,5 +1,6 @@
 // Sistema de Entrevistas - Script Principal
 let entrevistas = [];
+let cargosAtivos = []; // Variável para armazenar cargos dinâmicos
 try {
     entrevistas = JSON.parse(localStorage.getItem('entrevistas')) || [];
 } catch (e) {
@@ -23,6 +24,15 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function inicializarSistema() {
+    // Inicializar Cargos (LocalStorage ou Padrão do arquivo cargos.js)
+    const cargosSalvos = localStorage.getItem('cargosPersonalizados');
+    if (cargosSalvos) {
+        cargosAtivos = JSON.parse(cargosSalvos);
+    } else {
+        // Se não tiver salvo, usa o padrão (deep copy para evitar referência)
+        cargosAtivos = typeof cargos !== 'undefined' ? JSON.parse(JSON.stringify(cargos)) : [];
+    }
+
     // Configurar data atual
     const data = new Date();
     const ano = data.getFullYear();
@@ -179,6 +189,9 @@ function configurarAbas() {
                 case 'estatisticas':
                     atualizarEstatisticas();
                     break;
+                case 'configuracoes':
+                    renderizarListaCargos();
+                    break;
             }
         });
     });
@@ -188,7 +201,7 @@ function carregarCargosSelect() {
     const select = document.getElementById('cargo');
     select.innerHTML = '<option value="">Escolha um cargo...</option>';
     
-    cargos.forEach(cargo => {
+    cargosAtivos.forEach(cargo => {
         const option = document.createElement('option');
         option.value = cargo.id;
         option.textContent = `${cargo.nome} (${cargo.categoria})`;
@@ -200,7 +213,7 @@ function carregarCargosFiltro() {
     const select = document.getElementById('filtroCargoHistorico');
     select.innerHTML = '<option value="">Todos os Cargos</option>';
     
-    cargos.forEach(cargo => {
+    cargosAtivos.forEach(cargo => {
         const option = document.createElement('option');
         option.value = cargo.nome; // Usando nome para facilitar filtro
         option.textContent = cargo.nome;
@@ -209,7 +222,7 @@ function carregarCargosFiltro() {
 }
 
 function selecionarCargo(cargoId) {
-    cargoSelecionado = cargos.find(c => c.id === cargoId);
+    cargoSelecionado = cargosAtivos.find(c => c.id === cargoId);
     
     if (cargoSelecionado) {
         // Atualizar info do cargo
@@ -426,7 +439,7 @@ function executarSalvamento(btnSalvar, textoOriginal) {
     // Proteção contra erro de cargo não selecionado (comum em edições antigas)
     if (!cargoSelecionado) {
         const cargoId = document.getElementById('cargo').value;
-        cargoSelecionado = cargos.find(c => c.id === cargoId);
+        cargoSelecionado = cargosAtivos.find(c => c.id === cargoId);
         if (!cargoSelecionado) {
             throw new Error("Cargo inválido ou não selecionado. Selecione o cargo novamente.");
         }
@@ -567,7 +580,7 @@ function agendarGoogleCalendar() {
         return;
     }
 
-    const cargo = cargos.find(c => c.id === cargoId);
+    const cargo = cargosAtivos.find(c => c.id === cargoId);
     
     // Calcular datas
     const dataInicio = new Date(`${data}T${hora}`);
@@ -618,7 +631,7 @@ function salvarAgendamento() {
         return;
     }
 
-    const cargo = cargos.find(c => c.id === dadosBasicos.cargo);
+    const cargo = cargosAtivos.find(c => c.id === dadosBasicos.cargo);
 
     const agendamento = {
         id: `agendamento_${Date.now()}`,
@@ -836,7 +849,7 @@ function mostrarEdicaoAgendamento(index) {
     const entrevista = entrevistas[index];
     const container = document.getElementById('agendaContainer');
     
-    const cargoOptions = cargos.map(c => 
+    const cargoOptions = cargosAtivos.map(c => 
         `<option value="${c.id}" ${c.id === entrevista.cargo ? 'selected' : ''}>${c.nome}</option>`
     ).join('');
 
@@ -905,7 +918,7 @@ function mostrarEdicaoAgendamento(index) {
 function salvarEdicaoAgendamento(index) {
     const entrevista = entrevistas[index];
     const cargoId = document.getElementById('editCargo').value;
-    const cargoObj = cargos.find(c => c.id === cargoId);
+    const cargoObj = cargosAtivos.find(c => c.id === cargoId);
 
     entrevista.candidatoNome = document.getElementById('editNome').value;
     entrevista.cargo = cargoId;
@@ -1262,6 +1275,140 @@ function desfazerExclusao() {
         atualizarEstatisticas();
         atualizarSelectRelatorio();
         mostrarMensagem('✅ Ação desfeita com sucesso!', 'success');
+    }
+}
+
+// --- Editor de Cargos ---
+function renderizarListaCargos() {
+    const container = document.getElementById('listaCargosConfig');
+    if (!container) return;
+
+    if (cargosAtivos.length === 0) {
+        container.innerHTML = '<div class="no-data">Nenhum cargo cadastrado.</div>';
+        return;
+    }
+
+    container.innerHTML = cargosAtivos.map(cargo => `
+        <div class="item-cargo-config">
+            <div>
+                <h4>${cargo.nome}</h4>
+                <small style="color:#666;">${cargo.categoria} • ${cargo.perguntas.length} perguntas</small>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <button class="btn btn-small btn-secondary" onclick="abrirModalCargo('${cargo.id}')">✏️ Editar</button>
+                <button class="btn btn-small btn-danger" onclick="excluirCargo('${cargo.id}')">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function abrirModalCargo(cargoId = null) {
+    const modal = document.getElementById('modalEditorCargo');
+    const containerPerguntas = document.getElementById('containerPerguntasEditor');
+    containerPerguntas.innerHTML = '';
+
+    if (cargoId) {
+        // Editar existente
+        const cargo = cargosAtivos.find(c => c.id === cargoId);
+        document.getElementById('tituloModalCargo').textContent = 'Editar Cargo';
+        document.getElementById('editCargoId').value = cargo.id;
+        document.getElementById('editCargoNome').value = cargo.nome;
+        document.getElementById('editCargoCategoria').value = cargo.categoria;
+        document.getElementById('editCargoDuracao').value = cargo.duracao;
+        document.getElementById('editCargoSalario').value = cargo.salario;
+        document.getElementById('editCargoHorario').value = cargo.horario;
+        document.getElementById('editCargoBeneficios').value = Array.isArray(cargo.beneficios) ? cargo.beneficios.join(', ') : cargo.beneficios;
+
+        cargo.perguntas.forEach(p => adicionarPerguntaEditor(p.categoria, p.texto));
+    } else {
+        // Novo cargo
+        document.getElementById('tituloModalCargo').textContent = 'Novo Cargo';
+        document.getElementById('editCargoId').value = '';
+        document.getElementById('editCargoNome').value = '';
+        document.getElementById('editCargoCategoria').value = '';
+        document.getElementById('editCargoDuracao').value = '';
+        document.getElementById('editCargoSalario').value = '';
+        document.getElementById('editCargoHorario').value = '';
+        document.getElementById('editCargoBeneficios').value = '';
+        
+        // Adicionar uma pergunta padrão
+        adicionarPerguntaEditor('Geral', '');
+    }
+
+    modal.style.display = 'flex';
+}
+
+function fecharModalCargo() {
+    document.getElementById('modalEditorCargo').style.display = 'none';
+}
+
+function adicionarPerguntaEditor(categoria = '', texto = '') {
+    const container = document.getElementById('containerPerguntasEditor');
+    const div = document.createElement('div');
+    div.className = 'pergunta-editor-item';
+    div.innerHTML = `
+        <div class="pergunta-editor-inputs">
+            <input type="text" class="edit-pergunta-cat" placeholder="Categoria (ex: Técnica)" value="${categoria}" style="font-size:12px; padding:5px;">
+            <textarea class="edit-pergunta-texto" placeholder="Texto da pergunta" rows="2" style="font-size:14px; padding:8px;">${texto}</textarea>
+        </div>
+        <button class="btn btn-small btn-danger" onclick="this.parentElement.remove()" style="height:fit-content;">🗑️</button>
+    `;
+    container.appendChild(div);
+}
+
+function salvarCargoEditado() {
+    const id = document.getElementById('editCargoId').value;
+    const nome = document.getElementById('editCargoNome').value;
+    
+    if (!nome) {
+        alert('O nome do cargo é obrigatório.');
+        return;
+    }
+
+    const novoCargo = {
+        id: id || `cargo_${Date.now()}`,
+        nome: nome,
+        categoria: document.getElementById('editCargoCategoria').value,
+        duracao: document.getElementById('editCargoDuracao').value,
+        salario: document.getElementById('editCargoSalario').value,
+        horario: document.getElementById('editCargoHorario').value,
+        beneficios: document.getElementById('editCargoBeneficios').value.split(',').map(b => b.trim()).filter(b => b),
+        perguntas: [],
+        // Mantém competências padrão ou copia do primeiro cargo se for novo
+        competencias: id ? cargosAtivos.find(c => c.id === id).competencias : (cargosAtivos[0] ? cargosAtivos[0].competencias : [])
+    };
+
+    // Coletar perguntas
+    document.querySelectorAll('.pergunta-editor-item').forEach(item => {
+        const cat = item.querySelector('.edit-pergunta-cat').value;
+        const texto = item.querySelector('.edit-pergunta-texto').value;
+        if (texto) {
+            novoCargo.perguntas.push({ categoria: cat || 'Geral', texto: texto });
+        }
+    });
+
+    if (id) {
+        const index = cargosAtivos.findIndex(c => c.id === id);
+        if (index !== -1) cargosAtivos[index] = novoCargo;
+    } else {
+        cargosAtivos.push(novoCargo);
+    }
+
+    // Salvar e atualizar
+    localStorage.setItem('cargosPersonalizados', JSON.stringify(cargosAtivos));
+    carregarCargosSelect();
+    carregarCargosFiltro();
+    renderizarListaCargos();
+    fecharModalCargo();
+    mostrarMensagem('✅ Cargo salvo com sucesso!', 'success');
+}
+
+function excluirCargo(id) {
+    if (confirm('Tem certeza que deseja excluir este cargo?')) {
+        cargosAtivos = cargosAtivos.filter(c => c.id !== id);
+        localStorage.setItem('cargosPersonalizados', JSON.stringify(cargosAtivos));
+        carregarCargosSelect();
+        renderizarListaCargos();
     }
 }
 
