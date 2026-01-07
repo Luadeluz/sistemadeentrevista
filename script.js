@@ -8,6 +8,9 @@ try {
 let cargoSelecionado = null;
 let entrevistaAtual = null;
 let ultimoItemExcluido = null;
+let cronometroInterval = null;
+let tempoInicioCronometro = 0;
+let agendaVisualizacao = 'triagem'; // 'triagem' ou 'gerencia'
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbziYqw4CANDC_waumX9zffeuNg2PbB3wJ_y5dI3YTN-2-tjXEBdrD922jUVQvzRfecjdw/exec'; // ⚠️ COLE A URL DO SEU SCRIPT DO GOOGLE AQUI (PASSO 9)
 
 // Inicialização do sistema
@@ -100,8 +103,10 @@ function configurarEventos() {
     });
     
     // Auto-save: Monitorar mudanças no formulário
-    document.getElementById('formEntrevista').addEventListener('input', salvarRascunhoAutomatico);
-    document.getElementById('perguntasContainer').addEventListener('input', salvarRascunhoAutomatico);
+    // Otimização: Debounce para evitar travamentos em sessões longas (espera 1s após parar de digitar)
+    const salvarRascunhoDebounced = debounce(salvarRascunhoAutomatico, 1000);
+    document.getElementById('formEntrevista').addEventListener('input', salvarRascunhoDebounced);
+    document.getElementById('perguntasContainer').addEventListener('input', salvarRascunhoDebounced);
     document.getElementById('avaliacaoContainer').addEventListener('click', salvarRascunhoAutomatico); // Para cliques nos botões
     
     // Busca no histórico
@@ -331,6 +336,42 @@ function iniciarEntrevista() {
     
     // Alertar que entrevista começou
     alert(`Entrevista iniciada para ${dadosBasicos.candidatoNome} - ${cargoSelecionado.nome}`);
+
+    // Iniciar Cronômetro
+    iniciarCronometro();
+
+    // --- UX: Melhoria de fluxo ---
+    // 1. Ocultar formulário para focar na entrevista
+    const form = document.getElementById('formEntrevista');
+    form.classList.add('hidden');
+
+    // 2. Adicionar botão para reexibir dados se necessário
+    const cardHeader = form.parentElement.querySelector('h2');
+    let btnToggle = document.getElementById('btnToggleForm');
+    
+    if (!btnToggle) {
+        btnToggle = document.createElement('button');
+        btnToggle.id = 'btnToggleForm';
+        btnToggle.type = 'button';
+        btnToggle.className = 'btn btn-small btn-secondary';
+        btnToggle.style.fontSize = '14px';
+        btnToggle.onclick = function() {
+            form.classList.toggle('hidden');
+            this.textContent = form.classList.contains('hidden') ? '👁️ Ver Dados' : '🙈 Ocultar Dados';
+        };
+        // Ajustar layout do header
+        cardHeader.style.display = 'flex';
+        cardHeader.style.justifyContent = 'space-between';
+        cardHeader.style.alignItems = 'center';
+        cardHeader.appendChild(btnToggle);
+    }
+    btnToggle.textContent = '👁️ Ver Dados';
+
+    // 3. Rolar suavemente para a área de perguntas
+    const perguntasCard = document.getElementById('perguntasContainer').closest('.card');
+    if (perguntasCard) {
+        perguntasCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
 function salvarEntrevista() {
@@ -339,6 +380,34 @@ function salvarEntrevista() {
         return;
     }
     
+    // Parar Cronômetro
+    pararCronometro();
+
+    // Feedback visual imediato para evitar sensação de travamento
+    const btnSalvar = document.querySelector('button[onclick="salvarEntrevista()"]');
+    const textoOriginal = btnSalvar ? btnSalvar.innerHTML : '💾 Salvar Entrevista Completa';
+    
+    if (btnSalvar) {
+        btnSalvar.disabled = true;
+        btnSalvar.innerHTML = '⏳ Processando...';
+    }
+
+    // Timeout para permitir que a tela atualize antes do processamento pesado
+    setTimeout(() => {
+        try {
+            executarSalvamento(btnSalvar, textoOriginal);
+        } catch (erro) {
+            console.error(erro);
+            alert('Ocorreu um erro ao salvar. Tente novamente.');
+            if (btnSalvar) {
+                btnSalvar.disabled = false;
+                btnSalvar.innerHTML = textoOriginal;
+            }
+        }
+    }, 100);
+}
+
+function executarSalvamento(btnSalvar, textoOriginal) {
     // Coletar respostas das perguntas
     const respostas = [];
     document.querySelectorAll('.resposta-pergunta').forEach(textarea => {
@@ -376,10 +445,14 @@ function salvarEntrevista() {
     entrevistaAtual.pontosFortes = document.getElementById('pontosFortes').value;
     entrevistaAtual.pontosMelhorar = document.getElementById('pontosMelhorar').value;
     entrevistaAtual.observacoes = document.getElementById('observacoes').value;
+    entrevistaAtual.duracaoReal = document.getElementById('cronometro').textContent; // Salvar duração
     
     // Coletar status
     const statusRadio = document.querySelector('input[name="status"]:checked');
-    entrevistaAtual.status = statusRadio ? statusRadio.value : 'analise';
+    // Se aprovado na triagem, muda para status específico de fluxo
+    if (statusFinal === 'aprovado') statusFinal = 'aprovado_triagem';
+    
+    entrevistaAtual.status = statusFinal;
     
     // Salvar no banco de dados
     entrevistas.push(entrevistaAtual);
@@ -400,10 +473,25 @@ function salvarEntrevista() {
     
     // Ir para aba de histórico
     document.querySelector('[data-tab="historico"]').click();
+    
+    // Restaurar botão (caso o usuário volte para a aba)
+    if (btnSalvar) {
+        btnSalvar.disabled = false;
+        btnSalvar.innerHTML = textoOriginal;
+    }
 }
 
 function limparFormulario() {
     document.getElementById('formEntrevista').reset();
+    
+    pararCronometro(); // Resetar cronômetro
+    document.getElementById('cronometro').classList.add('hidden');
+
+    // Restaurar visibilidade do formulário
+    document.getElementById('formEntrevista').classList.remove('hidden');
+    const btnToggle = document.getElementById('btnToggleForm');
+    if (btnToggle) btnToggle.remove();
+
     document.getElementById('cargoInfo').classList.add('hidden');
     document.getElementById('perguntasContainer').innerHTML = 
         '<div class="no-data">Selecione um cargo para visualizar as perguntas da entrevista</div>';
@@ -604,28 +692,64 @@ function restaurarRascunho(rascunho) {
         mostrarMensagem('📝 Rascunho restaurado com sucesso!', 'success');
     }, 200);
 }
+// --- Agenda ---
+function mudarVisualizacaoAgenda(tipo) {
+    agendaVisualizacao = tipo;
+    
+    // Atualizar botões
+    const btnTriagem = document.getElementById('btnAgendaTriagem');
+    const btnGerencia = document.getElementById('btnAgendaGerencia');
+    
+    if (tipo === 'triagem') {
+        btnTriagem.classList.add('active', 'btn-primary');
+        btnTriagem.classList.remove('btn-secondary');
+        btnGerencia.classList.remove('active', 'btn-primary');
+        btnGerencia.classList.add('btn-secondary');
+    } else {
+        btnGerencia.classList.add('active', 'btn-primary');
+        btnGerencia.classList.remove('btn-secondary');
+        btnTriagem.classList.remove('active', 'btn-primary');
+        btnTriagem.classList.add('btn-secondary');
+    }
+    
+    carregarAgenda();
+}
 
-// Agenda
 function carregarAgenda() {
     const container = document.getElementById('agendaContainer');
     
-    // Filtrar apenas agendados ou futuros (opcional: mostrar todos ordenados)
-    // Vamos mostrar tudo ordenado por data
-    const listaOrdenada = [...entrevistas].sort((a, b) => {
+    // Filtrar com base na visualização atual
+    let listaFiltrada = [];
+    
+    if (agendaVisualizacao === 'triagem') {
+        listaFiltrada = entrevistas.filter(e => e.status === 'agendado');
+    } else {
+        listaFiltrada = entrevistas.filter(e => e.status === 'agendado_gerencia');
+    }
+    
+    // Ordenar por data
+    const listaOrdenada = listaFiltrada.sort((a, b) => {
+        // Para gerência, usa a data da gerência se existir
+        const dataStrA = agendaVisualizacao === 'gerencia' && a.dadosGerencia ? a.dadosGerencia.data : a.dataEntrevista;
+        const horaStrA = agendaVisualizacao === 'gerencia' && a.dadosGerencia ? a.dadosGerencia.hora : a.horaEntrevista;
+        
+        const dataStrB = agendaVisualizacao === 'gerencia' && b.dadosGerencia ? b.dadosGerencia.data : b.dataEntrevista;
+        const horaStrB = agendaVisualizacao === 'gerencia' && b.dadosGerencia ? b.dadosGerencia.hora : b.horaEntrevista;
+        
         const dataA = new Date(`${a.dataEntrevista}T${a.horaEntrevista || '00:00'}`);
         const dataB = new Date(`${b.dataEntrevista}T${b.horaEntrevista || '00:00'}`);
         return dataA - dataB;
     });
 
     if (listaOrdenada.length === 0) {
-        container.innerHTML = '<div class="no-data">Nenhuma entrevista agendada.</div>';
+        container.innerHTML = `<div class="no-data">Nenhuma entrevista agendada para ${agendaVisualizacao === 'triagem' ? 'Triagem' : 'Gerência'}.</div>`;
         return;
     }
 
     // Agrupar por dia
     const grupos = {};
     listaOrdenada.forEach(e => {
-        const data = e.dataEntrevista;
+        const data = agendaVisualizacao === 'gerencia' && e.dadosGerencia ? e.dadosGerencia.data : e.dataEntrevista;
         if (!grupos[data]) grupos[data] = [];
         grupos[data].push(e);
     });
@@ -633,19 +757,42 @@ function carregarAgenda() {
     let html = '';
     Object.keys(grupos).sort().forEach(data => {
         const itens = grupos[data];
+        
         html += `
             <div class="agenda-dia">
                 <div class="agenda-data-titulo">${formatarData(data)}</div>
-                ${itens.map((item, idx) => `
+                ${itens.map((item) => {
+                    const realIndex = entrevistas.indexOf(item);
+                    const hora = agendaVisualizacao === 'gerencia' && item.dadosGerencia ? item.dadosGerencia.hora : (item.horaEntrevista || '??:??');
+                    const extraInfo = agendaVisualizacao === 'gerencia' && item.dadosGerencia ? `<br><small>👔 Gerente: ${item.dadosGerencia.gerente}</small>` : '';
+                    
+                    // Botões diferentes para cada agenda
+                    let botoes = '';
+                    if (agendaVisualizacao === 'triagem') {
+                        botoes = `
+                            <button class="btn btn-small btn-secondary" onclick="mostrarEdicaoAgendamento(${realIndex})">✏️ Editar</button>
+                            <button class="btn btn-small" onclick="editarEntrevista(${realIndex})">▶️ Iniciar</button>
+                            <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${realIndex})">🗑️ Excluir</button>
+                        `;
+                    } else {
+                        botoes = `
+                            <button class="btn btn-small btn-success" onclick="abrirModalResultadoGerencia(${realIndex})">✅ Resultado</button>
+                            <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${realIndex})">🗑️ Cancelar</button>
+                        `;
+                    }
+
+                    return `
                     <div class="agenda-item">
-                        <div><span class="agenda-hora">${item.horaEntrevista || '??:??'}</span> <strong>${item.candidatoNome}</strong> - ${item.cargoNome}</div>
+                        <div>
+                            <span class="agenda-hora">${hora}</span> 
+                            <strong>${item.candidatoNome}</strong> - ${item.cargoNome}
+                            ${extraInfo}
+                        </div>
                         <div style="display: flex; gap: 5px;">
-                            <button class="btn btn-small btn-secondary" onclick="mostrarEdicaoAgendamento(${entrevistas.indexOf(item)})">✏️ Editar</button>
-                            <button class="btn btn-small" onclick="editarEntrevista(${entrevistas.indexOf(item)})">▶️ Iniciar</button>
-                            <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${entrevistas.indexOf(item)})">🗑️ Excluir</button>
+                            ${botoes}
                         </div>
                     </div>
-                `).join('')}
+                `}).join('')}
             </div>
         `;
     });
@@ -657,20 +804,16 @@ function mostrarEdicaoAgendamento(index) {
     const entrevista = entrevistas[index];
     const container = document.getElementById('agendaContainer');
     
-    // Gerar opções de cargo
     const cargoOptions = cargos.map(c => 
         `<option value="${c.id}" ${c.id === entrevista.cargo ? 'selected' : ''}>${c.nome}</option>`
     ).join('');
 
     container.innerHTML = `
         <div class="card-edicao" style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-            <h3 style="color: #6a0dad; margin-bottom: 20px; border-bottom: 2px solid #f0f0ff; padding-bottom: 10px;">
-                ✏️ Editar Agendamento
-            </h3>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+           <h3 style="color: #6a0dad; margin-bottom: 15px;">✏️ Editar Agendamento</h3>
+           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div class="form-group">
-                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Nome do Candidato</label>
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Nome</label>
                     <input type="text" id="editNome" value="${entrevista.candidatoNome}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
                 </div>
                 
@@ -801,13 +944,48 @@ function carregarHistoricoEntrevistas(filtro = '') {
         const dataFormatada = formatarData(entrevista.dataEntrevista);
         const statusClass = `status-${entrevista.status}`;
         const statusText = {
-            'aprovado': '✅ Aprovado',
+            'aprovado': '✅ Aprovado (Antigo)',
+            'aprovado_triagem': '📋 Aprovado na Triagem',
             'reprovado': '❌ Reprovado',
             'analise': '⏳ Em análise',
             'faltou': '🚫 Faltou',
-            'agendado': '📅 Agendado'
+            'agendado': '📅 Agendado',
+            'agendado_gerencia': '👔 Agendado Gerência',
+            'contratado': '🎉 Contratado',
+            'reprovado_gerencia': '❌ Reprovado Gerência'
         }[entrevista.status] || entrevista.status;
         
+        // Lógica de botões de ação
+        let botoesAcao = '';
+        // Botão de Feedback (para reprovados ou contratados)
+        if (['reprovado', 'reprovado_gerencia', 'contratado'].includes(entrevista.status)) {
+            const feedbackClass = entrevista.feedbackEnviado ? 'enviado' : '';
+            const feedbackText = entrevista.feedbackEnviado ? '✉️ Feedback Enviado' : '✉️ Marcar Feedback';
+            botoesAcao += `
+                <button class="btn btn-small btn-feedback ${feedbackClass}" onclick="alternarFeedback(${realIndex})">
+                    ${feedbackText}
+                </button>
+            `;
+        }
+
+        // Botão Agendar Gerência (para aprovados na triagem)
+        if (entrevista.status === 'aprovado_triagem') {
+            botoesAcao += `
+                <button class="btn btn-small btn-primary" onclick="abrirModalGerencia(${realIndex})">
+                    📅 Agendar Gerência
+                </button>
+            `;
+        }
+
+        // Botão Resultado Gerência (para agendados gerencia)
+        if (entrevista.status === 'agendado_gerencia') {
+            botoesAcao += `
+                <button class="btn btn-small btn-success" onclick="abrirModalResultadoGerencia(${realIndex})">
+                    ✅ Resultado Gerência
+                </button>
+            `;
+        }
+
         return `
             <div class="entrevista-item ${entrevista.status}">
                 <div class="entrevista-header">
@@ -832,6 +1010,7 @@ function carregarHistoricoEntrevistas(filtro = '') {
                     <div class="detalhe-item">
                         <div class="detalhe-label">Avaliação</div>
                         <div class="detalhe-valor">${entrevista.mediaAvaliacao || 'N/A'}/5</div>
+                        ${entrevista.duracaoReal ? `<div style="font-size:0.8em; color:#666; margin-top:2px;">${entrevista.duracaoReal}</div>` : ''}
                     </div>
                     <div class="detalhe-item">
                         <div class="detalhe-label">Local</div>
@@ -840,6 +1019,7 @@ function carregarHistoricoEntrevistas(filtro = '') {
                 </div>
                 
                 <div class="acoes-entrevista">
+                    ${botoesAcao}
                     <button class="btn btn-small" onclick="verDetalhesEntrevista(${realIndex})">
                         👁️ Detalhes
                     </button>
@@ -861,13 +1041,13 @@ function carregarHistoricoEntrevistas(filtro = '') {
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
             <div>
                 <h3 style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
-                    📅 Agendadas (${agendadas.length})
+                    📅 Agendadas / Em Andamento (${agendadas.length})
                 </h3>
                 ${agendadas.length ? agendadas.map(gerarCard).join('') : '<div class="no-data">Nenhum agendamento encontrado.</div>'}
             </div>
             <div>
                 <h3 style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
-                    ✅ Realizadas / Finalizadas (${realizadas.length})
+                    ✅ Histórico (${realizadas.length})
                 </h3>
                 ${realizadas.length ? realizadas.map(gerarCard).join('') : '<div class="no-data">Nenhuma entrevista realizada encontrada.</div>'}
             </div>
@@ -883,7 +1063,8 @@ function verDetalhesEntrevista(index) {
             <div><strong>Data:</strong> ${formatarData(entrevista.dataEntrevista)}</div>
             <div><strong>Entrevistador:</strong> ${entrevista.entrevistador}</div>
             <div><strong>Status:</strong> ${entrevista.status}</div>
-            <div><strong>Média da Avaliação:</strong> ${entrevista.mediaAvaliacao || 'N/A'}/5</div>
+            <div><strong>Média:</strong> ${entrevista.mediaAvaliacao || 'N/A'}/5</div>
+            ${entrevista.duracaoReal ? `<div><strong>Duração:</strong> ${entrevista.duracaoReal}</div>` : ''}
         </div>
         
         <h4>📝 Respostas da Entrevista</h4>
@@ -950,12 +1131,28 @@ function gerarRelatorioEntrevista(index) {
 function editarEntrevista(index) {
     const entrevista = entrevistas[index];
     
+    // 1. MUDANÇA: Navegar imediatamente para a aba de entrevista para feedback visual instantâneo
+    document.querySelector('[data-tab="entrevista"]').click();
+    
+    // Restaurar visibilidade do formulário para edição
+    document.getElementById('formEntrevista').classList.remove('hidden');
+    const btnToggle = document.getElementById('btnToggleForm');
+    if (btnToggle) btnToggle.remove();
+
     // Definir como entrevista atual para permitir edição e salvamento direto
     entrevistaAtual = entrevista;
+
+    // Se for uma entrevista agendada (ainda não realizada), iniciar o cronômetro
+    if (entrevista.status === 'agendado') {
+        iniciarCronometro();
+    } else {
+        document.getElementById('cronometro').classList.add('hidden');
+    }
 
     // Preencher formulário com dados da entrevista
     document.getElementById('candidatoNome').value = entrevista.candidatoNome;
     document.getElementById('cargo').value = entrevista.cargo;
+    document.getElementById('entrevistador').value = entrevista.entrevistador;
     document.getElementById('horaEntrevista').value = entrevista.horaEntrevista || '';
     document.getElementById('vagaInhire').value = entrevista.vagaInhire || '';
     if(document.getElementById('linkReuniao')) document.getElementById('linkReuniao').value = entrevista.linkReuniao || '';
@@ -999,12 +1196,9 @@ function editarEntrevista(index) {
             // Atualizar histórico
             carregarHistoricoEntrevistas();
             
-            // Ir para aba de entrevista
-            document.querySelector('[data-tab="entrevista"]').click();
-            
             mostrarMensagem('📝 Entrevista carregada para edição. Faça as alterações e salve novamente.', 'info');
-        }, 500);
-    }, 100);
+        }, 300); // Tempo reduzido para ser mais ágil
+    }, 50);
 }
 
 function excluirEntrevista(index) {
@@ -1081,6 +1275,7 @@ function carregarPreviewRelatorio(index) {
                 <div class="info-item">
                     <strong>Status:</strong> ${entrevista.status.toUpperCase()}
                 </div>
+                ${entrevista.duracaoReal ? `<div class="info-item"><strong>Duração:</strong> ${entrevista.duracaoReal}</div>` : ''}
                 <div class="info-item">
                     <strong>Data do Relatório:</strong> ${formatarData(new Date().toISOString())}
                 </div>
@@ -1160,11 +1355,15 @@ function carregarPreviewRelatorio(index) {
     
     // Avaliação final
     const statusText = {
-        'aprovado': '✅ CANDIDATO APROVADO',
+        'aprovado': '✅ APROVADO (TRIAGEM)',
+        'aprovado_triagem': '✅ APROVADO NA TRIAGEM',
         'reprovado': '❌ CANDIDATO REPROVADO',
         'analise': '⏳ EM ANÁLISE',
         'faltou': '🚫 CANDIDATO FALTOU',
-        'agendado': '📅 ENTREVISTA AGENDADA'
+        'agendado': '📅 ENTREVISTA AGENDADA',
+        'agendado_gerencia': '👔 AGENDADO COM GERÊNCIA',
+        'contratado': '🎉 CANDIDATO CONTRATADO',
+        'reprovado_gerencia': '❌ REPROVADO PELA GERÊNCIA'
     }[entrevista.status] || entrevista.status;
     
     html += `
@@ -1180,7 +1379,6 @@ function carregarPreviewRelatorio(index) {
         </div>
     `;
     
-    container.innerHTML = html;
     container.classList.remove('hidden');
     
     // Habilitar botões
@@ -1192,7 +1390,7 @@ function carregarPreviewRelatorio(index) {
     container.dataset.index = index;
 }
 
-async function gerarPDF() {
+function gerarPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
     
@@ -1344,7 +1542,7 @@ async function gerarPDF() {
     }[entrevista.status] || entrevista.status;
     
     doc.setFontSize(16);
-    if (entrevista.status === 'aprovado') {
+    if (entrevista.status.includes('aprovado') || entrevista.status === 'contratado') {
         doc.setTextColor(0, 176, 155);
     } else if (entrevista.status === 'reprovado') {
         doc.setTextColor(255, 65, 108);
@@ -1362,8 +1560,7 @@ async function gerarPDF() {
     // Salvar PDF
     const fileName = `Entrevista_${entrevista.candidatoNome.replace(/\s+/g, '_')}_${formatarData(entrevista.dataEntrevista).replace(/\//g, '-')}.pdf`;
     doc.save(fileName);
-    
-    mostrarMensagem('📄 PDF gerado com sucesso!', 'success');
+    mostrarMensagem('✅ PDF gerado com sucesso!', 'success');
 }
 
 async function gerarRelatorioListaPDF(tipo) {
@@ -2110,3 +2307,112 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Função utilitária para otimizar performance (Debounce)
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+}
+
+// --- Funções do Cronômetro ---
+function iniciarCronometro() {
+    pararCronometro(); // Limpa anterior se houver
+    tempoInicioCronometro = Date.now();
+    const display = document.getElementById('cronometro');
+    
+    if(display) {
+        display.classList.remove('hidden');
+        display.textContent = '⏱️ 00:00:00';
+    }
+    
+    cronometroInterval = setInterval(() => {
+        const agora = Date.now();
+        const diff = agora - tempoInicioCronometro;
+        
+        const seg = Math.floor((diff / 1000) % 60);
+        const min = Math.floor((diff / (1000 * 60)) % 60);
+        const hr = Math.floor((diff / (1000 * 60 * 60)));
+        
+        if(display) display.textContent = `⏱️ ${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}`;
+    }, 1000);
+}
+
+function pararCronometro() {
+    if (cronometroInterval) {
+        clearInterval(cronometroInterval);
+        cronometroInterval = null;
+    }
+}
+
+// --- Funções de Gerência e Feedback ---
+
+function alternarFeedback(index) {
+    entrevistas[index].feedbackEnviado = !entrevistas[index].feedbackEnviado;
+    localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+    carregarHistoricoEntrevistas(); // Recarrega para atualizar botão
+    mostrarMensagem(entrevistas[index].feedbackEnviado ? '✅ Feedback marcado como enviado!' : '↩️ Feedback desmarcado.', 'success');
+}
+
+function abrirModalGerencia(index) {
+    const entrevista = entrevistas[index];
+    document.getElementById('indexGerencia').value = index;
+    document.getElementById('nomeCandidatoGerencia').value = entrevista.candidatoNome;
+    document.getElementById('modalAgendamentoGerencia').style.display = 'flex';
+}
+
+function fecharModalGerencia() {
+    document.getElementById('modalAgendamentoGerencia').style.display = 'none';
+}
+
+function salvarAgendamentoGerencia() {
+    const index = document.getElementById('indexGerencia').value;
+    const data = document.getElementById('dataGerencia').value;
+    const hora = document.getElementById('horaGerencia').value;
+    const gerente = document.getElementById('nomeGerente').value;
+    const obs = document.getElementById('obsGerencia').value;
+
+    if (!data || !hora || !gerente) {
+        alert('Preencha Data, Hora e Nome do Gerente.');
+        return;
+    }
+
+    entrevistas[index].status = 'agendado_gerencia';
+    entrevistas[index].dadosGerencia = { data, hora, gerente, obs };
+    
+    localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+    enviarParaGoogleSheets(entrevistas[index]);
+    
+    fecharModalGerencia();
+    mostrarMensagem('👔 Entrevista com gerência agendada!', 'success');
+    carregarHistoricoEntrevistas();
+}
+
+function abrirModalResultadoGerencia(index) {
+    const entrevista = entrevistas[index];
+    document.getElementById('indexResultadoGerencia').value = index;
+    document.getElementById('nomeCandidatoResultado').textContent = entrevista.candidatoNome;
+    document.getElementById('modalResultadoGerencia').style.display = 'flex';
+}
+
+function fecharModalResultadoGerencia() {
+    document.getElementById('modalResultadoGerencia').style.display = 'none';
+}
+
+function salvarResultadoGerencia(resultado) {
+    const index = document.getElementById('indexResultadoGerencia').value;
+    
+    entrevistas[index].status = resultado;
+    entrevistas[index].dataFinalizacao = new Date().toISOString();
+    
+    localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+    enviarParaGoogleSheets(entrevistas[index]);
+    
+    fecharModalResultadoGerencia();
+    mostrarMensagem(resultado === 'contratado' ? '🎉 Candidato Contratado!' : 'Processo finalizado.', 'success');
+    carregarHistoricoEntrevistas();
+    carregarAgenda(); // Atualiza agenda se estiver aberta
+}

@@ -623,6 +623,30 @@ body.dark-mode .nota-btn {
     color: #1967d2;
 }
 
+.status-aprovado_triagem {
+    background: #e0cffc;
+    color: #5b21b6;
+    border: 1px solid #c4b5fd;
+}
+
+.status-agendado_gerencia {
+    background: #ffedd5;
+    color: #9a3412;
+    border: 1px solid #fed7aa;
+}
+
+.status-contratado {
+    background: #d1fae5;
+    color: #065f46;
+    border: 2px solid #10b981;
+    font-weight: 800;
+}
+
+.status-reprovado_gerencia {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
 .entrevista-detalhes {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -653,6 +677,20 @@ body.dark-mode .nota-btn {
     display: flex;
     gap: 10px;
     margin-top: 15px;
+}
+
+/* Botão de Feedback */
+.btn-feedback {
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+}
+
+.btn-feedback.enviado {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #86efac;
+    font-weight: bold;
 }
 
 /* Estatísticas */
@@ -896,6 +934,18 @@ body.dark-mode .nota-btn {
     gap: 20px;
 }
 
+.agenda-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.agenda-controls .btn.active {
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+}
+
 .agenda-dia {
     background: #f8f5ff;
     border-radius: 15px;
@@ -950,6 +1000,21 @@ body.dark-mode .nota-btn {
 body.dark-mode .no-data {
     background: #374151;
     border-color: #4b5563;
+}
+
+/* Cronômetro */
+.cronometro {
+    font-family: 'Courier New', monospace;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #6a0dad;
+    background: #f8f5ff;
+    padding: 8px 15px;
+    border-radius: 8px;
+    border: 1px solid #e6e6ff;
+    display: flex;
+    align-items: center;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
 }
 
 /* Responsividade */

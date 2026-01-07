@@ -11,8 +11,8 @@
 <body>
     <div class="container">
         <header>
-            <h1>📋 Sistema de Entrevistas - Varejo</h1>
-            <p class="subtitle">Avaliação de candidatos para Operacional e Gerente de Loja</p>
+            <h1>📋 Sistema de Entrevistas</h1>
+            <p class="subtitle">Avaliação de candidatos</p>
             <button id="toggleDarkMode" class="btn-theme-toggle" title="Alternar Modo Escuro">
                 🌙
             </button>
@@ -84,7 +84,7 @@
 
                         <div class="form-group">
                             <label for="entrevistador">Entrevistador *</label>
-                            <input type="text" id="entrevistador" required placeholder="Seu nome">
+                            <input type="text" id="entrevistador" required placeholder="Seu nome" value="Rebeca">
                         </div>
 
                         <div class="form-group">
@@ -114,7 +114,10 @@
                 </div>
 
                 <div class="card">
-                    <h2>📝 Respostas e Avaliação</h2>
+                    <div class="card-header">
+                        <h2>📝 Respostas e Avaliação</h2>
+                        <div id="cronometro" class="cronometro hidden">⏱️ 00:00:00</div>
+                    </div>
                     <div id="perguntasContainer" class="perguntas-container">
                         <div class="no-data">
                             Selecione um cargo para visualizar as perguntas da entrevista
@@ -178,6 +181,10 @@
                 <div class="card-header">
                     <h2>📅 Agenda de Entrevistas</h2>
                 </div>
+                <div class="agenda-controls">
+                    <button class="btn btn-small active" id="btnAgendaTriagem" onclick="mudarVisualizacaoAgenda('triagem')">📋 Triagem Inicial</button>
+                    <button class="btn btn-small btn-secondary" id="btnAgendaGerencia" onclick="mudarVisualizacaoAgenda('gerencia')">👔 Entrevista Gerência</button>
+                </div>
                 <div id="agendaContainer" class="agenda-container">
                     <!-- Agenda carregada via JS -->
                 </div>
@@ -203,6 +210,9 @@
                             <option value="analise">Em análise</option>
                             <option value="agendado">Agendados</option>
                             <option value="faltou">Faltou</option>
+                            <option value="aprovado_triagem">Aprovado (Triagem)</option>
+                            <option value="agendado_gerencia">Agendado (Gerência)</option>
+                            <option value="contratado">Contratados</option>
                         </select>
                     </div>
                 </div>
@@ -335,6 +345,65 @@
                 <div class="modal-footer">
                     <button class="btn btn-secondary" onclick="fecharModalConfirmacao()">Cancelar</button>
                     <button class="btn btn-danger" id="btnConfirmarAcao">Confirmar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL AGENDAMENTO GERÊNCIA -->
+        <div id="modalAgendamentoGerencia" class="modal">
+            <div class="modal-content modal-sm">
+                <div class="modal-header">
+                    <h3>📅 Agendar com Gerência</h3>
+                    <button class="close-modal" onclick="fecharModalGerencia()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="indexGerencia">
+                    <div class="form-group">
+                        <label>Candidato</label>
+                        <input type="text" id="nomeCandidatoGerencia" disabled style="background: #f0f0f0; color: #666;">
+                    </div>
+                    <div class="form-group">
+                        <label>Data da Entrevista *</label>
+                        <input type="date" id="dataGerencia" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Hora *</label>
+                        <input type="time" id="horaGerencia" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nome do Gerente *</label>
+                        <input type="text" id="nomeGerente" placeholder="Quem fará a entrevista?" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Observações para o Gerente</label>
+                        <textarea id="obsGerencia" rows="3" placeholder="Pontos de atenção ou foco da entrevista..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="salvarAgendamentoGerencia()">Confirmar Agendamento</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL RESULTADO GERÊNCIA -->
+        <div id="modalResultadoGerencia" class="modal">
+            <div class="modal-content modal-sm">
+                <div class="modal-header">
+                    <h3>👔 Resultado Final (Gerência)</h3>
+                    <button class="close-modal" onclick="fecharModalResultadoGerencia()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="indexResultadoGerencia">
+                    <p style="margin-bottom: 20px;">Defina o resultado da entrevista com a gerência para <strong id="nomeCandidatoResultado" style="color: #8a2be2;"></strong>:</p>
+                    
+                    <div style="display: flex; gap: 10px; flex-direction: column;">
+                        <button class="btn btn-success" style="justify-content: center; padding: 15px;" onclick="salvarResultadoGerencia('contratado')">
+                            ✅ CONTRATAR CANDIDATO
+                        </button>
+                        <button class="btn btn-danger" style="justify-content: center; padding: 15px;" onclick="salvarResultadoGerencia('reprovado_gerencia')">
+                            ❌ REPROVAR NA GERÊNCIA
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
