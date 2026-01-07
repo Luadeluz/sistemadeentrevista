@@ -58,9 +58,24 @@ function inicializarSistema() {
         div.innerHTML = `
             <div style="background:white; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
                 <h3 style="margin-top:0; color:#6a0dad; border-bottom:1px solid #eee; padding-bottom:10px;">📊 Relatórios Gerais</h3>
+                
+                <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <label for="periodoRelatorio" style="font-weight:bold; color:#555;">Período:</label>
+                    <select id="periodoRelatorio" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc; background: white;">
+                        <option value="todos">Todo o Período</option>
+                        <option value="7dias">Últimos 7 dias</option>
+                        <option value="30dias">Últimos 30 dias</option>
+                    </select>
+                </div>
+
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-                    <button class="btn" onclick="gerarRelatorioListaPDF('agendadas')" style="background:#e8f0fe; color:#1967d2; border:1px solid #aecbfa;">📅 Baixar Lista de Agendadas</button>
-                    <button class="btn" onclick="gerarRelatorioListaPDF('realizadas')" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb;">✅ Baixar Lista de Realizadas</button>
+                    <button class="btn" onclick="gerarRelatorioListaPDF('agendadas')" style="background:#e8f0fe; color:#1967d2; border:1px solid #aecbfa;">📅 Agendadas (Triagem)</button>
+                    <button class="btn" onclick="gerarRelatorioListaPDF('agendadas_gerencia')" style="background:#fff7ed; color:#c2410c; border:1px solid #fdba74;">👔 Agendadas (Gerência)</button>
+                    <button class="btn" onclick="gerarRelatorioListaPDF('realizadas')" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb;">✅ Histórico / Realizadas</button>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; border-top: 1px dashed #eee; padding-top: 10px;">
+                    <button class="btn" onclick="gerarRelatorioStatusFeedback('geral')" style="background:#f3e8ff; color:#6a0dad; border:1px solid #d8b4fe;">📢 Relatório Geral de Feedback</button>
+                    <button class="btn" onclick="gerarRelatorioStatusFeedback('pendentes')" style="background:#fff7ed; color:#c2410c; border:1px solid #fdba74;">⚠️ Pendentes de Feedback</button>
                 </div>
             </div>
         `;
@@ -1584,8 +1599,16 @@ function gerarPDF() {
 async function gerarRelatorioListaPDF(tipo) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
-    const titulo = tipo === 'agendadas' ? 'RELATÓRIO DE ENTREVISTAS AGENDADAS' : 'RELATÓRIO DE ENTREVISTAS REALIZADAS';
+    const periodo = document.getElementById('periodoRelatorio').value;
     
+    let titulo = '';
+    if (tipo === 'agendadas') titulo = 'RELATÓRIO DE ENTREVISTAS AGENDADAS (TRIAGEM)';
+    else if (tipo === 'agendadas_gerencia') titulo = 'RELATÓRIO DE ENTREVISTAS AGENDADAS (GERÊNCIA)';
+    else titulo = 'RELATÓRIO DE ENTREVISTAS REALIZADAS';
+
+    const textoPeriodo = periodo === '7dias' ? ' (Últimos 7 dias)' : periodo === '30dias' ? ' (Últimos 30 dias)' : '';
+    titulo += textoPeriodo;
+
     // Header
     doc.setFillColor(138, 43, 226);
     doc.rect(0, 0, 210, 25, 'F');
@@ -1596,10 +1619,32 @@ async function gerarRelatorioListaPDF(tipo) {
     let y = 35;
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
+
+    // Filtro de data
+    const dataLimite = new Date();
+    if (periodo === '7dias') dataLimite.setDate(dataLimite.getDate() - 7);
+    if (periodo === '30dias') dataLimite.setDate(dataLimite.getDate() - 30);
+    if (periodo !== 'todos') dataLimite.setHours(0, 0, 0, 0);
     
-    const lista = entrevistas.filter(e => 
-        tipo === 'agendadas' ? e.status === 'agendado' : e.status !== 'agendado'
-    ).sort((a, b) => new Date(b.dataEntrevista) - new Date(a.dataEntrevista));
+    const lista = entrevistas.filter(e => {
+        // Filtro de Tipo
+        let statusMatch = false;
+        if (tipo === 'agendadas') statusMatch = (e.status === 'agendado');
+        else if (tipo === 'agendadas_gerencia') statusMatch = (e.status === 'agendado_gerencia');
+        else statusMatch = (e.status !== 'agendado' && e.status !== 'agendado_gerencia');
+        
+        if (!statusMatch) return false;
+
+        // Filtro de Data
+        if (periodo === 'todos') return true;
+        
+        const dataStr = (tipo === 'agendadas_gerencia' && e.dadosGerencia) ? e.dadosGerencia.data : e.dataEntrevista;
+        const dataItem = new Date(dataStr.includes('T') ? dataStr : dataStr + 'T00:00:00');
+        return dataItem >= dataLimite;
+    }).sort((a, b) => {
+        const getDate = (item) => (tipo === 'agendadas_gerencia' && item.dadosGerencia) ? new Date(item.dadosGerencia.data) : new Date(item.dataEntrevista);
+        return getDate(b) - getDate(a);
+    });
 
     if (lista.length === 0) {
         doc.text("Nenhum registro encontrado.", 10, y);
@@ -1622,6 +1667,18 @@ async function gerarRelatorioListaPDF(tipo) {
                 } else {
                     doc.text(`Local: ${item.localEntrevista}`, 10, y + 10);
                     y += 15;
+                }
+            } else if (tipo === 'agendadas_gerencia') {
+                const data = formatarData(item.dadosGerencia.data);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${data} - ${item.dadosGerencia.hora} | ${item.candidatoNome}`, 10, y);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Gerente: ${item.dadosGerencia.gerente}`, 10, y + 5);
+                if (item.dadosGerencia.obs) {
+                    doc.text(`Obs: ${item.dadosGerencia.obs}`, 10, y + 10);
+                    y += 15;
+                } else {
+                    y += 10;
                 }
             } else {
                 const status = item.status.toUpperCase();
@@ -2433,4 +2490,110 @@ function salvarResultadoGerencia(resultado) {
     mostrarMensagem(resultado === 'contratado' ? '🎉 Candidato Contratado!' : 'Processo finalizado.', 'success');
     carregarHistoricoEntrevistas();
     carregarAgenda(); // Atualiza agenda se estiver aberta
+}
+
+async function gerarRelatorioStatusFeedback(modo) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const periodo = document.getElementById('periodoRelatorio').value;
+    
+    let titulo = 'RELATÓRIO GERAL DE STATUS & FEEDBACK';
+    if (modo === 'pendentes') titulo = 'RELATÓRIO DE FEEDBACKS PENDENTES';
+    
+    const textoPeriodo = periodo === '7dias' ? ' (Últimos 7 dias)' : periodo === '30dias' ? ' (Últimos 30 dias)' : '';
+    titulo += textoPeriodo;
+
+    // Header
+    doc.setFillColor(138, 43, 226);
+    doc.rect(0, 0, 210, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text(titulo, 105, 15, { align: 'center' });
+    
+    let y = 35;
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+
+    // Helper to add section
+    const addSection = (title, items, columns) => {
+        if (y > 260) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setTextColor(138, 43, 226);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, 10, y);
+        y += 8;
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+
+        if (items.length === 0) {
+            doc.text("Nenhum registro encontrado.", 10, y);
+            y += 10;
+        } else {
+            items.forEach(item => {
+                if (y > 270) { doc.addPage(); y = 20; }
+                const line = columns(item);
+                doc.text(line, 10, y);
+                y += 6;
+            });
+            y += 10;
+        }
+    };
+
+    // Helper para filtrar por data (se modo semanal)
+    const filtrarPorData = (lista) => {
+        if (periodo === 'todos') return lista;
+        const dataLimite = new Date();
+        if (periodo === '7dias') dataLimite.setDate(dataLimite.getDate() - 7);
+        if (periodo === '30dias') dataLimite.setDate(dataLimite.getDate() - 30);
+        dataLimite.setHours(0, 0, 0, 0);
+        
+        return lista.filter(item => {
+            const dataStr = (item.dadosGerencia && item.dadosGerencia.data) ? item.dadosGerencia.data : item.dataEntrevista;
+            if (!dataStr) return false;
+            const dataItem = new Date(dataStr.includes('T') ? dataStr : dataStr + 'T00:00:00');
+            return dataItem >= dataLimite;
+        });
+    };
+
+    // 1. Reprovados Triagem
+    let reprovadosTriagem = entrevistas.filter(e => e.status === 'reprovado');
+    if (modo === 'pendentes') reprovadosTriagem = reprovadosTriagem.filter(e => !e.feedbackEnviado);
+    reprovadosTriagem = filtrarPorData(reprovadosTriagem);
+    
+    addSection(`1. ❌ REPROVADOS NA 1ª ETAPA (${reprovadosTriagem.length})`, reprovadosTriagem, (item) => {
+        const feedback = item.feedbackEnviado ? '[Enviado]' : '[PENDENTE]';
+        return `${formatarData(item.dataEntrevista)} | ${item.candidatoNome} (${item.cargoNome}) - ${feedback}`;
+    });
+
+    // 2. Fluxo Gerência
+    let fluxoGerencia = entrevistas.filter(e => ['agendado_gerencia', 'contratado', 'reprovado_gerencia'].includes(e.status));
+    if (modo === 'pendentes') {
+        // Apenas mostrar quem precisa de feedback (Contratado ou Reprovado na Gerência)
+        fluxoGerencia = fluxoGerencia.filter(e => !e.feedbackEnviado && e.status !== 'agendado_gerencia');
+    }
+    fluxoGerencia = filtrarPorData(fluxoGerencia);
+    
+    addSection(`2. 👔 FLUXO DE GERÊNCIA (${fluxoGerencia.length})`, fluxoGerencia, (item) => {
+        const gerente = item.dadosGerencia ? item.dadosGerencia.gerente : 'N/A';
+        const status = item.status === 'agendado_gerencia' ? 'Agendado' : (item.status === 'contratado' ? 'Contratado' : 'Reprovado');
+        const feedback = item.feedbackEnviado ? '[Enviado]' : '[PENDENTE]';
+        
+        if (item.status === 'agendado_gerencia') return `${formatarData(item.dadosGerencia?.data || item.dataEntrevista)} | ${item.candidatoNome} - Gerente: ${gerente} (Aguardando)`;
+        return `${formatarData(item.dadosGerencia?.data || item.dataEntrevista)} | ${item.candidatoNome} - ${status} - ${feedback}`;
+    });
+
+    // 3. Reprovados Gerência (Destaque específico)
+    let reprovadosGerencia = entrevistas.filter(e => e.status === 'reprovado_gerencia');
+    if (modo === 'pendentes') reprovadosGerencia = reprovadosGerencia.filter(e => !e.feedbackEnviado);
+    reprovadosGerencia = filtrarPorData(reprovadosGerencia);
+
+    addSection(`3. ❌ REPROVADOS NA GERÊNCIA (${reprovadosGerencia.length})`, reprovadosGerencia, (item) => {
+        const gerente = item.dadosGerencia ? item.dadosGerencia.gerente : 'N/A';
+        const feedback = item.feedbackEnviado ? '[Enviado]' : '[PENDENTE]';
+        return `${formatarData(item.dataFinalizacao || item.dataEntrevista)} | ${item.candidatoNome} - Gerente: ${gerente} - ${feedback}`;
+    });
+
+    doc.save(`Relatorio_Feedback_${modo}_${new Date().toISOString().split('T')[0]}.pdf`);
+    mostrarMensagem('✅ Relatório gerado com sucesso!', 'success');
 }
