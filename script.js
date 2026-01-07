@@ -162,6 +162,23 @@ function configurarEventos() {
             });
         }
     });
+
+    // Drag and Drop para perguntas no editor
+    const containerPerguntas = document.getElementById('containerPerguntasEditor');
+    if (containerPerguntas) {
+        containerPerguntas.addEventListener('dragover', e => {
+            e.preventDefault();
+            const afterElement = getDragAfterElement(containerPerguntas, e.clientY);
+            const draggable = document.querySelector('.dragging');
+            if (draggable) {
+                if (afterElement == null) {
+                    containerPerguntas.appendChild(draggable);
+                } else {
+                    containerPerguntas.insertBefore(draggable, afterElement);
+                }
+            }
+        });
+    }
 }
 
 function configurarAbas() {
@@ -1318,6 +1335,7 @@ function abrirModalCargo(cargoId = null) {
         document.getElementById('editCargoSalario').value = cargo.salario;
         document.getElementById('editCargoHorario').value = cargo.horario;
         document.getElementById('editCargoBeneficios').value = Array.isArray(cargo.beneficios) ? cargo.beneficios.join(', ') : cargo.beneficios;
+        document.getElementById('editCargoObservacoes').value = cargo.observacoes || '';
 
         cargo.perguntas.forEach(p => adicionarPerguntaEditor(p.categoria, p.texto));
     } else {
@@ -1330,6 +1348,7 @@ function abrirModalCargo(cargoId = null) {
         document.getElementById('editCargoSalario').value = '';
         document.getElementById('editCargoHorario').value = '';
         document.getElementById('editCargoBeneficios').value = '';
+        document.getElementById('editCargoObservacoes').value = '';
         
         // Adicionar uma pergunta padrão
         adicionarPerguntaEditor('Geral', '');
@@ -1346,6 +1365,7 @@ function adicionarPerguntaEditor(categoria = '', texto = '') {
     const container = document.getElementById('containerPerguntasEditor');
     const div = document.createElement('div');
     div.className = 'pergunta-editor-item';
+    div.draggable = true;
     div.innerHTML = `
         <div class="pergunta-editor-inputs">
             <input type="text" class="edit-pergunta-cat" placeholder="Categoria (ex: Técnica)" value="${categoria}" style="font-size:12px; padding:5px;">
@@ -1353,6 +1373,15 @@ function adicionarPerguntaEditor(categoria = '', texto = '') {
         </div>
         <button class="btn btn-small btn-danger" onclick="this.parentElement.remove()" style="height:fit-content;">🗑️</button>
     `;
+    
+    // Eventos de Drag and Drop
+    div.addEventListener('dragstart', () => {
+        div.classList.add('dragging');
+    });
+    div.addEventListener('dragend', () => {
+        div.classList.remove('dragging');
+    });
+
     container.appendChild(div);
 }
 
@@ -1373,6 +1402,7 @@ function salvarCargoEditado() {
         salario: document.getElementById('editCargoSalario').value,
         horario: document.getElementById('editCargoHorario').value,
         beneficios: document.getElementById('editCargoBeneficios').value.split(',').map(b => b.trim()).filter(b => b),
+        observacoes: document.getElementById('editCargoObservacoes').value,
         perguntas: [],
         // Mantém competências padrão ou copia do primeiro cargo se for novo
         competencias: id ? cargosAtivos.find(c => c.id === id).competencias : (cargosAtivos[0] ? cargosAtivos[0].competencias : [])
@@ -2743,4 +2773,19 @@ async function gerarRelatorioStatusFeedback(modo) {
 
     doc.save(`Relatorio_Feedback_${modo}_${new Date().toISOString().split('T')[0]}.pdf`);
     mostrarMensagem('✅ Relatório gerado com sucesso!', 'success');
+}
+
+// Helper para Drag and Drop
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.pergunta-editor-item:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
 }

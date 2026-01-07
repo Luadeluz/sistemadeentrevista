@@ -1047,6 +1047,12 @@ body.dark-mode .no-data {
     display: flex;
     gap: 10px;
     align-items: flex-start;
+    cursor: grab;
+}
+
+.pergunta-editor-item.dragging {
+    opacity: 0.5;
+    border: 2px dashed #8a2be2;
 }
 
 .pergunta-editor-inputs {
