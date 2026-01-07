@@ -1019,8 +1019,8 @@ function carregarHistoricoEntrevistas(filtro = '') {
         
         // Lógica de botões de ação
         let botoesAcao = '';
-        // Botão de Feedback (para reprovados ou contratados)
-        if (['reprovado', 'reprovado_gerencia', 'contratado'].includes(entrevista.status)) {
+        // Botão de Feedback (para reprovados, contratados ou faltou)
+        if (['reprovado', 'reprovado_gerencia', 'contratado', 'faltou'].includes(entrevista.status)) {
             const feedbackClass = entrevista.feedbackEnviado ? 'enviado' : '';
             const feedbackText = entrevista.feedbackEnviado ? '✉️ Feedback Enviado' : '✉️ Marcar Feedback';
             botoesAcao += `
@@ -2769,6 +2769,16 @@ async function gerarRelatorioStatusFeedback(modo) {
         const gerente = item.dadosGerencia ? item.dadosGerencia.gerente : 'N/A';
         const feedback = item.feedbackEnviado ? '[Enviado]' : '[PENDENTE]';
         return `${formatarData(item.dataFinalizacao || item.dataEntrevista)} | ${item.candidatoNome} - Gerente: ${gerente} - ${feedback}`;
+    });
+
+    // 4. Faltou (Nova Seção)
+    let faltouLista = entrevistas.filter(e => e.status === 'faltou');
+    if (modo === 'pendentes') faltouLista = faltouLista.filter(e => !e.feedbackEnviado);
+    faltouLista = filtrarPorData(faltouLista);
+
+    addSection(`4. 🚫 CANDIDATOS QUE FALTARAM (${faltouLista.length})`, faltouLista, (item) => {
+        const feedback = item.feedbackEnviado ? '[Enviado]' : '[PENDENTE]';
+        return `${formatarData(item.dataEntrevista)} | ${item.candidatoNome} (${item.cargoNome}) - ${feedback}`;
     });
 
     doc.save(`Relatorio_Feedback_${modo}_${new Date().toISOString().split('T')[0]}.pdf`);
