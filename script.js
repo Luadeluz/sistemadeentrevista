@@ -1217,14 +1217,12 @@ function carregarPainelDia(dataFiltro = null) {
         document.getElementById('dataFiltroPainel').value = dataAlvo;
     }
 
-    // Filtrar entrevistas daquele dia (estritamente pela data do compromisso)
+    // Filtrar entrevistas daquele dia (aparece se for a data da triagem OU a data da gerência)
     const entrevistasDoDia = entrevistas.filter(e => {
-        // Se for agendamento de gerência, olha a data da gerência
-        if (e.status === 'agendado_gerencia' && e.dadosGerencia && e.dadosGerencia.data) {
-            return e.dadosGerencia.data === dataAlvo;
-        }
-        // Caso contrário (Triagem ou outros status), olha a data original de agendamento
-        return e.dataEntrevista === dataAlvo;
+        const dataTriagem = e.dataEntrevista;
+        const dataGerencia = (e.dadosGerencia && e.dadosGerencia.data) ? e.dadosGerencia.data : null;
+
+        return dataTriagem === dataAlvo || dataGerencia === dataAlvo;
     });
 
     // Ordenar por hora
@@ -1236,13 +1234,11 @@ function carregarPainelDia(dataFiltro = null) {
 
     // Atualizar Resumo
     const total = entrevistasDoDia.length;
-    // TRIAGENS: Contar qualquer um que esteja na fase de triagem (agendado, iniciado ou aprovado na triagem)
-    const triagem = entrevistasDoDia.filter(e =>
-        e.status === 'agendado' || e.status === 'analise' || e.status === 'aprovado_triagem' || e.status === 'aprovado'
-    ).length;
+    // TRIAGENS: Contamos todos que tiveram a entrevista de triagem marcada para este dia
+    const triagem = entrevistasDoDia.filter(e => e.dataEntrevista === dataAlvo).length;
 
-    // GERÊNCIA: Contar quem está agendado para a gerência
-    const gerencia = entrevistasDoDia.filter(e => e.status === 'agendado_gerencia').length;
+    // GERÊNCIA: Contamos todos que têm a entrevista de gerência marcada para este dia
+    const gerencia = entrevistasDoDia.filter(e => e.dadosGerencia && e.dadosGerencia.data === dataAlvo).length;
 
     resumo.innerHTML = `
         <div class="stat-card" style="padding: 15px; background: #f8f9fa;">
