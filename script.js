@@ -51,34 +51,26 @@ window.sincronizarComPlanilha = async function () {
                 if (item && item.candidatoNome) {
                     const indexExistente = entrevistas.findIndex(e => e.id === item.id);
                     if (indexExistente !== -1) {
-                        // COMPARAÇÃO INTELIGENTE: Quem tem a informação mais relevante?
-                        const pesosStatus = {
-                            'vaga_cancelada': 1000, 'desistencia_candidato': 1000, 'contratado': 1000,
-                            'reprovado': 1000, 'reprovado_gerencia': 1000, 'faltou': 1000,
-                            'agendado_gerencia': 600, // Subiu de 400 para 600 (Maior que aprovado na triagem)
-                            'aprovado_triagem': 500, 'aprovado': 500,
-                            'analise': 300, 'agendado': 100
-                        };
+                        // FILOSOFIA REBECA: O sistema local manda. A planilha só completa o que falta.
+                        const local = entrevistas[indexExistente];
+                        const planilha = item;
 
-                        const extraLocal = (entrevistas[indexExistente].dadosGerencia ? 100 : 0);
-                        const pontosLocal = (entrevistas[indexExistente].respostas ? entrevistas[indexExistente].respostas.length : 0) + (pesosStatus[entrevistas[indexExistente].status] || 0) + extraLocal;
-                        const pontosPlanilha = (item.respostas ? item.respostas.length : 0) + (pesosStatus[item.status] || 0);
+                        // Se o local já tem respostas ou um status avançado, não deixa a planilha mexer.
+                        // Só atualizamos o local se a planilha trouxer algo que o local NÃO TEM (ex: vindo de outro computador ou nova importação)
+                        const localVazio = (!local.respostas || local.respostas.length === 0) && local.status === 'agendado';
+                        const planilhaTemInfo = (planilha.respostas && planilha.respostas.length > 0) || planilha.status !== 'agendado';
 
-                        if (pontosPlanilha > pontosLocal) {
-                            // Planilha está mais avançada ou completa: atualiza local
-                            // Importante: Preservar dadosGerencia se o item da planilha não tiver
-                            const dadosGerenciaAntigos = entrevistas[indexExistente].dadosGerencia;
-                            entrevistas[indexExistente] = { ...entrevistas[indexExistente], ...item };
-
-                            if (dadosGerenciaAntigos && !entrevistas[indexExistente].dadosGerencia) {
-                                entrevistas[indexExistente].dadosGerencia = dadosGerenciaAntigos;
-                            }
+                        if (localVazio && planilhaTemInfo) {
+                            // Local está "virgem" e planilha tem dados: traz da nuvem
+                            entrevistas[indexExistente] = { ...local, ...planilha };
                             atualizados++;
-                        } else if (pontosLocal > pontosPlanilha) {
-                            // Local está mais avançado: prepara para subir para a planilha
-                            precisaSubir.push(entrevistas[indexExistente]);
+                        } else {
+                            // Se o local já tem VIDA (foi mexido), ele manda subir sua versão para a nuvem
+                            // apenas se houver diferença real para não saturar o tráfego
+                            if (JSON.stringify(local) !== JSON.stringify(planilha)) {
+                                precisaSubir.push(local);
+                            }
                         }
-                        // Se forem iguais (pontosPlanilha === pontosLocal), não faz nada para evitar loops infinitos
                     } else {
                         // Não existe localmente: Adiciona novo vindo da nuvem
                         entrevistas.push(item);
