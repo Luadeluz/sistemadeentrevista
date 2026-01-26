@@ -1083,8 +1083,8 @@ window.carregarAgenda = function () {
         const dataStrB = agendaVisualizacao === 'gerencia' && b.dadosGerencia ? b.dadosGerencia.data : b.dataEntrevista;
         const horaStrB = agendaVisualizacao === 'gerencia' && b.dadosGerencia ? b.dadosGerencia.hora : b.horaEntrevista;
 
-        const dataA = new Date(`${a.dataEntrevista}T${a.horaEntrevista || '00:00'}`);
-        const dataB = new Date(`${b.dataEntrevista}T${b.horaEntrevista || '00:00'}`);
+        const dataA = new Date(`${dataStrA}T${horaStrA || '00:00'}`);
+        const dataB = new Date(`${dataStrB}T${horaStrB || '00:00'}`);
         return dataA - dataB;
     });
 
