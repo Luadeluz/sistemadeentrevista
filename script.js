@@ -45,33 +45,60 @@ window.sincronizarComPlanilha = async function () {
 
             let novosRegistros = 0;
             let atualizados = 0;
+            let precisaSubir = [];
 
             dadosPlanilha.forEach(item => {
                 if (item && item.candidatoNome) {
                     const indexExistente = entrevistas.findIndex(e => e.id === item.id);
                     if (indexExistente !== -1) {
-                        // Atualiza registro existente (caso tenha dados novos na planilha)
-                        entrevistas[indexExistente] = { ...entrevistas[indexExistente], ...item };
-                        atualizados++;
+                        // COMPARAÇÃO INTELIGENTE: Quem tem mais informações?
+                        const pesoLocal = (entrevistas[indexExistente].respostas ? entrevistas[indexExistente].respostas.length : 0);
+                        const pesoPlanilha = (item.respostas ? item.respostas.length : 0);
+
+                        if (pesoPlanilha >= pesoLocal) {
+                            // Planilha está mais completa ou igual: atualiza local
+                            entrevistas[indexExistente] = { ...entrevistas[indexExistente], ...item };
+                            atualizados++;
+                        } else {
+                            // Local está mais completo: prepara para subir para a planilha
+                            precisaSubir.push(entrevistas[indexExistente]);
+                        }
                     } else {
-                        // Adiciona novo registro
+                        // Não existe localmente: Adiciona novo vindo da nuvem
                         entrevistas.push(item);
                         novosRegistros++;
                     }
                 }
             });
 
-            if (novosRegistros > 0 || atualizados > 0) {
+            // Verificar se há itens locais que NÃO estão na planilha (ex: importados recentemente)
+            const idsPlanilha = new Set(dadosPlanilha.map(d => d.id));
+            entrevistas.forEach(e => {
+                if (!idsPlanilha.has(e.id)) {
+                    precisaSubir.push(e);
+                }
+            });
+
+            if (novosRegistros > 0 || atualizados > 0 || precisaSubir.length > 0) {
                 localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-                const duplicatasRemovidas = removerDuplicatas();
+                removerDuplicatas();
                 carregarDados();
+
                 let msg = `✅ Sincronizado!`;
-                if (novosRegistros > 0) msg += ` ${novosRegistros} novos.`;
+                if (novosRegistros > 0) msg += ` ${novosRegistros} novos baixados.`;
                 if (atualizados > 0) msg += ` ${atualizados} atualizados.`;
-                if (duplicatasRemovidas > 0) msg += ` (${duplicatasRemovidas} replicados limpos)`;
-                mostrarMensagem(msg, 'success');
+
+                if (precisaSubir.length > 0) {
+                    mostrarMensagem(`${msg}<br>🔄 Enviando ${precisaSubir.length} atualizações locais para a nuvem...`, 'info');
+                    // Enviar lotes para não travar
+                    precisaSubir.forEach((item, idx) => {
+                        setTimeout(() => enviarParaGoogleSheets(item), idx * 800);
+                    });
+                } else {
+                    mostrarMensagem(msg, 'success');
+                }
             } else {
-                mostrarMensagem('ℹ️ Seu sistema já está 100% igual à planilha.', 'info');
+                mostrarMensagem('ℹ️ Seu sistema e a planilha já estão em perfeita harmonia.', 'info');
             }
         } else {
             console.warn('Formato inesperado:', dadosPlanilha);
@@ -2638,29 +2665,43 @@ window.importarDados = function () {
         try {
             const dadosImportados = JSON.parse(e.target.result);
             if (Array.isArray(dadosImportados)) {
-                entrevistas = dadosImportados;
-                localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+                const totalAntes = entrevistas.length;
+                let novos = 0;
+                let atualizados = 0;
 
-                // Limpar filtros para garantir que os dados apareçam
-                ['filtroStatus', 'filtroCargoHistorico', 'filtroDataInicio', 'filtroDataFim', 'buscarEntrevista'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.value = '';
+                dadosImportados.forEach(item => {
+                    if (item && item.candidatoNome) {
+                        const indexExistente = entrevistas.findIndex(e => e.id === item.id);
+                        if (indexExistente !== -1) {
+                            // Se o importado tiver mais respostas ou for mais recente, atualiza
+                            const pesoLocal = (entrevistas[indexExistente].respostas ? entrevistas[indexExistente].respostas.length : 0);
+                            const pesoImportado = (item.respostas ? item.respostas.length : 0);
+
+                            if (pesoImportado >= pesoLocal) {
+                                entrevistas[indexExistente] = { ...entrevistas[indexExistente], ...item };
+                                atualizados++;
+                            }
+                        } else {
+                            entrevistas.push(item);
+                            novos++;
+                        }
+                    }
                 });
 
+                localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+                removerDuplicatas();
                 carregarDados();
 
-                // Ir para a aba de histórico automaticamente
-                const tabHistorico = document.querySelector('[data-tab="historico"]');
-                if (tabHistorico) tabHistorico.click();
+                mostrarMensagem(`📥 Importação concluída! ${novos} novos e ${atualizados} atualizados.`, 'success');
 
-                // Enviar dados importados para o Google Sheets
-                mostrarMensagem(`📥 Restaurado! Enviando ${dadosImportados.length} registros para a planilha...`, 'info');
-
-                dadosImportados.forEach((item, index) => {
+                // Opcional: Perguntar se deseja sincronizar com a nuvem após importar
+                if (novos > 0 || atualizados > 0) {
                     setTimeout(() => {
-                        enviarParaGoogleSheets(item);
-                    }, index * 1000); // 1 segundo de intervalo entre cada envio para não sobrecarregar
-                });
+                        if (confirm(`Deseja enviar esses ${novos + atualizados} registros atualizados para a planilha online agora?`)) {
+                            sincronizarComPlanilha();
+                        }
+                    }, 1000);
+                }
             } else {
                 throw new Error('Formato inválido');
             }
