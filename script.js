@@ -1209,16 +1209,14 @@ function carregarPainelDia(dataFiltro = null) {
         document.getElementById('dataFiltroPainel').value = dataAlvo;
     }
 
-    // Filtrar entrevistas daquele dia (tanto agendadas quanto já realizadas)
+    // Filtrar entrevistas daquele dia (estritamente pela data do compromisso)
     const entrevistasDoDia = entrevistas.filter(e => {
-        // Data principal (agendamento)
-        const dataGerencia = e.dadosGerencia ? e.dadosGerencia.data : null;
-        const dataPrinc = (e.status === 'agendado_gerencia' || e.dadosGerencia) ? (dataGerencia || e.dataEntrevista) : e.dataEntrevista;
-
-        // Data de finalização (opcional)
-        const dataFim = e.dataFinalizacao ? e.dataFinalizacao.split('T')[0] : null;
-
-        return dataPrinc === dataAlvo || dataFim === dataAlvo;
+        // Se for agendamento de gerência, olha a data da gerência
+        if (e.status === 'agendado_gerencia' && e.dadosGerencia && e.dadosGerencia.data) {
+            return e.dadosGerencia.data === dataAlvo;
+        }
+        // Caso contrário (Triagem ou outros status), olha a data original de agendamento
+        return e.dataEntrevista === dataAlvo;
     });
 
     // Ordenar por hora
