@@ -1454,9 +1454,9 @@ function carregarHistoricoEntrevistas(filtro = '') {
             <div class="secao-historico">
                 <h3 onclick="toggleSecaoHistorico('secao-agendadas')" style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
                     <span>📅 Agendadas / Em Andamento (${agendadas.length})</span>
-                    <span id="icon-secao-agendadas" style="font-size: 0.8em; opacity: 0.6;">▼</span>
+                    <span id="icon-secao-agendadas" style="font-size: 0.8em; opacity: 0.6;">▶</span>
                 </h3>
-                <div id="secao-agendadas" class="conteudo-secao">
+                <div id="secao-agendadas" class="conteudo-secao hidden-secao">
                     ${agendadas.length ? agendadas.map(gerarCard).join('') : '<div class="no-data">Nenhum agendamento encontrado.</div>'}
                 </div>
             </div>
