@@ -17,12 +17,7 @@ window.sincronizarComPlanilha = async function () {
         const urlFinal = `${urlLimpa}?action=read&t=${Date.now()}`;
         console.log('Chamando URL:', urlFinal);
 
-        const response = await fetch(urlFinal, {
-            method: 'GET',
-            cache: 'no-store',
-            mode: 'cors',
-            redirect: 'follow'
-        });
+        const response = await fetch(urlFinal);
 
         console.log('Status da Resposta:', response.status);
 
@@ -97,6 +92,22 @@ function removerDuplicatas() {
         localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
     }
     return removidos;
+}
+
+function limparDadosTeste() {
+    mostrarConfirmacao('Deseja realmente apagar todas as entrevistas com o nome "teste"? Esta ação não pode ser desfeita localmente.', () => {
+        const totalAntes = entrevistas.length;
+        entrevistas = entrevistas.filter(e => e.candidatoNome.toLowerCase().trim() !== 'teste');
+        const removidos = totalAntes - entrevistas.length;
+
+        if (removidos > 0) {
+            localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+            carregarDados();
+            mostrarMensagem(`🧹 Limpeza concluída! ${removidos} registros de teste foram removidos.`, 'success');
+        } else {
+            mostrarMensagem('ℹ️ Nenhum registro com o nome "teste" foi encontrado.', 'info');
+        }
+    });
 }
 
 
@@ -1081,6 +1092,70 @@ function salvarEdicaoAgendamento(index) {
     mostrarMensagem('✅ Agendamento atualizado!', 'success');
     carregarAgenda();
     carregarPainelDia(); // Atualizar painel se modificado
+}
+
+function mostrarEdicaoGerencia(index) {
+    const entrevista = entrevistas[index];
+    const container = document.getElementById('agendaContainer');
+    if (!entrevista.dadosGerencia) {
+        entrevista.dadosGerencia = { data: '', hora: '', gerente: '', obs: '' };
+    }
+
+    container.innerHTML = `
+        <div class="card-edicao" style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+           <h3 style="color: #6a0dad; margin-bottom: 15px;">✏️ Editar Dados da Gerência</h3>
+           <p style="margin-bottom: 15px;">Candidato: <strong>${entrevista.candidatoNome}</strong></p>
+           
+           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Data Gerência</label>
+                    <input type="date" id="editDataGerencia" value="${entrevista.dadosGerencia.data}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Horário Gerência</label>
+                    <input type="time" id="editHoraGerencia" value="${entrevista.dadosGerencia.hora}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Nome do Gerente</label>
+                    <input type="text" id="editGerente" value="${entrevista.dadosGerencia.gerente}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Observações Gerência</label>
+                    <textarea id="editObsGerencia" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; min-height:80px;">${entrevista.dadosGerencia.obs || ''}</textarea>
+                </div>
+            </div>
+
+            <div style="margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="carregarAgenda()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button onclick="salvarEdicaoGerencia(${index})" style="padding: 10px 20px; background: #6a0dad; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    💾 Salvar Alterações
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function salvarEdicaoGerencia(index) {
+    const entrevista = entrevistas[index];
+
+    entrevista.dadosGerencia = {
+        data: document.getElementById('editDataGerencia').value,
+        hora: document.getElementById('editHoraGerencia').value,
+        gerente: document.getElementById('editGerente').value,
+        obs: document.getElementById('editObsGerencia').value
+    };
+
+    localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+    enviarParaGoogleSheets(entrevista);
+
+    mostrarMensagem('✅ Dados da Gerência atualizados!', 'success');
+    carregarAgenda();
+    carregarPainelDia();
 }
 
 // --- Funções de Compatibilidade e Novas Abas ---
