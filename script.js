@@ -710,8 +710,16 @@ function executarSalvamento(btnSalvar, textoOriginal) {
     if (!cargoSelecionado) {
         const cargoId = document.getElementById('cargo').value;
         cargoSelecionado = cargosAtivos.find(c => c.id === cargoId);
+
+        // FALLBACK: Se o cargo não existir mais na lista oficial, tenta usar o primeiro disponível 
+        // ou cria um objeto temporário para não travar o salvamento das respostas.
+        if (!cargoSelecionado && cargosAtivos.length > 0) {
+            console.warn("Cargo original não encontrado. Usando definições do primeiro cargo disponível para evitar perda de dados.");
+            cargoSelecionado = cargosAtivos[0];
+        }
+
         if (!cargoSelecionado) {
-            throw new Error("Cargo inválido ou não selecionado. Selecione o cargo novamente.");
+            throw new Error("Não foi possível identificar o cargo desta entrevista. Por favor, selecione um cargo novamente no topo do formulário.");
         }
     }
 
@@ -1346,9 +1354,10 @@ function carregarPainelDia(dataFiltro = null) {
                         <strong style="font-size: 1.1em;">${item.candidatoNome}</strong> - ${item.cargoNome}
                         ${item.dadosGerencia && item.dadosGerencia.gerente ? `<br><small style="color: #666;">👔 Gerente: ${item.dadosGerencia.gerente}</small>` : ''}
                     </div>
-                    <div style="margin-top: 10px; display: flex; gap: 5px;">
+                    <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
                         ${item.status === 'agendado_gerencia' ? `<button class="btn btn-small btn-secondary" onclick="copiarParaAreaTransferencia(gerarTextoGerencia(${realIndex}))" title="Copiar convite WhatsApp">📋 Copiar Convite</button>` : ''}
-                        ${item.status === 'reprovado' || item.status === 'reprovado_gerencia' ? `<button class="btn btn-small btn-secondary" onclick="copiarParaAreaTransferencia(gerarTextoReprovacao(${realIndex}))" title="Copiar texto de reprovação">📋 Copiar Reprovação</button>` : ''}
+                        ${(item.status === 'reprovado' || item.status === 'reprovado_gerencia') ? `<button class="btn btn-small btn-secondary" onclick="copiarParaAreaTransferencia(gerarTextoReprovacao(${realIndex}))" title="Copiar texto de reprovação">📋 Copiar Reprovação</button>` : ''}
+                        <button class="btn btn-small btn-secondary" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;" onclick="forcarSincronizacaoItem(${realIndex})" title="Forçar atualização na planilha">☁️ Sinc. Nuvem</button>
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center;">
@@ -1554,13 +1563,19 @@ function carregarHistoricoEntrevistas(filtro = '') {
                 </button>
             `;
         }
-        if (['reprovado', 'reprovado_gerencia'].includes(entrevista.status)) {
+        if (entrevista.status === 'reprovado' || entrevista.status === 'reprovado_gerencia') {
             botoesAcao += `
                 <button class="btn btn-small btn-secondary" onclick="copiarParaAreaTransferencia(gerarTextoReprovacao(${realIndex}))">
                     📋 Copiar Reprovação
                 </button>
             `;
         }
+
+        botoesAcao += `
+            <button class="btn btn-small btn-secondary" style="background: #f0fdf4; color: #166534;" onclick="forcarSincronizacaoItem(${realIndex})">
+                ☁️ Sinc. Nuvem
+            </button>
+        `;
 
         return `
             <div class="entrevista-item ${entrevista.status}">
@@ -1750,10 +1765,12 @@ function editarEntrevista(index) {
     document.getElementById('entrevistador').value = entrevista.entrevistador;
     document.getElementById('horaEntrevista').value = entrevista.horaEntrevista || '';
     document.getElementById('vagaInhire').value = entrevista.vagaInhire || '';
-    if (document.getElementById('linkReuniao')) document.getElementById('linkReuniao').value = entrevista.linkReuniao || '';
-
     // Selecionar o cargo
     setTimeout(() => {
+        const cargoExiste = cargosAtivos.some(c => c.id === entrevista.cargo);
+        if (!cargoExiste) {
+            mostrarMensagem('⚠️ Atenção: O cargo desta entrevista antiga foi alterado ou excluído. Selecione um novo cargo se desejar salvar alterações.', 'info');
+        }
         selecionarCargo(entrevista.cargo);
 
         // Preencher respostas
@@ -2885,7 +2902,7 @@ function formatarData(dataString) {
 function enviarParaGoogleSheets(dados) {
     if (!GOOGLE_SCRIPT_URL) return;
 
-    fetch(GOOGLE_SCRIPT_URL, {
+    return fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
@@ -2893,9 +2910,30 @@ function enviarParaGoogleSheets(dados) {
         },
         body: JSON.stringify(dados)
     })
-        .then(() => console.log('Dados enviados para o Google Sheets'))
-        .catch(erro => console.error('Erro ao enviar para Sheets:', erro));
+        .then(() => {
+            console.log('Dados enviados para o Google Sheets:', dados.candidatoNome);
+            return true;
+        })
+        .catch(erro => {
+            console.error('Erro ao enviar para Sheets:', erro);
+            throw erro;
+        });
 }
+
+window.forcarSincronizacaoItem = async function (index) {
+    const e = entrevistas[index];
+    mostrarMensagem(`☁️ Sincronizando ${e.candidatoNome}...`, 'info');
+
+    try {
+        await enviarParaGoogleSheets(e);
+        // Pequeno atraso para o Google processar
+        setTimeout(() => {
+            mostrarMensagem(`✅ ${e.candidatoNome} atualizado na nuvem com sucesso!`, 'success');
+        }, 1500);
+    } catch (err) {
+        mostrarMensagem(`❌ Falha ao sincronizar ${e.candidatoNome}. Verifique sua conexão.`, 'error');
+    }
+};
 
 function mostrarMensagem(texto, tipo = 'info') {
     // Criar elemento de mensagem
