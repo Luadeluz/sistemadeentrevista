@@ -183,6 +183,14 @@ document.addEventListener('DOMContentLoaded', function () {
     verificarRascunho();
     removerDuplicatas(); // Limpar ao abrir o sistema
     inicializarTema();
+
+    // Sincronização Automática ao Iniciar (após 2 segundos para não travar o carregamento inicial)
+    setTimeout(() => {
+        if (typeof sincronizarComPlanilha === 'function') {
+            console.log('🔄 Sincronização automática iniciada...');
+            sincronizarComPlanilha();
+        }
+    }, 2000);
 });
 
 function inicializarSistema() {
