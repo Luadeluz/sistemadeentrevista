@@ -1,6 +1,15 @@
 // Sistema de Entrevistas - Script Principal
 console.log('Script principal carregado!');
 
+// Variáveis Globais
+var entrevistas = [];
+var cargosAtivos = [];
+try {
+    entrevistas = JSON.parse(localStorage.getItem('entrevistas')) || [];
+} catch (e) {
+    entrevistas = [];
+}
+
 // Vincular funções ao escopo global explicitamente para evitar ReferenceErrors
 window.sincronizarComPlanilha = async function () {
     console.log('--- Iniciando Sincronização ---');
@@ -71,6 +80,22 @@ window.sincronizarComPlanilha = async function () {
     }
 };
 
+window.limparDadosTeste = function () {
+    mostrarConfirmacao('Deseja realmente apagar todas as entrevistas com o nome "teste"? Esta ação não pode ser desfeita localmente.', () => {
+        const totalAntes = entrevistas.length;
+        entrevistas = entrevistas.filter(e => e.candidatoNome.toLowerCase().trim() !== 'teste');
+        const removidos = totalAntes - entrevistas.length;
+
+        if (removidos > 0) {
+            localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+            carregarDados();
+            mostrarMensagem(`🧹 Limpeza concluída! ${removidos} registros de teste foram removidos.`, 'success');
+        } else {
+            mostrarMensagem('ℹ️ Nenhum registro com o nome "teste" foi encontrado.', 'info');
+        }
+    });
+};
+
 // Função para remover duplicatas (Nome + Cargo + Data)
 function removerDuplicatas() {
     const vistos = new Set();
@@ -94,31 +119,7 @@ function removerDuplicatas() {
     return removidos;
 }
 
-function limparDadosTeste() {
-    mostrarConfirmacao('Deseja realmente apagar todas as entrevistas com o nome "teste"? Esta ação não pode ser desfeita localmente.', () => {
-        const totalAntes = entrevistas.length;
-        entrevistas = entrevistas.filter(e => e.candidatoNome.toLowerCase().trim() !== 'teste');
-        const removidos = totalAntes - entrevistas.length;
 
-        if (removidos > 0) {
-            localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-            carregarDados();
-            mostrarMensagem(`🧹 Limpeza concluída! ${removidos} registros de teste foram removidos.`, 'success');
-        } else {
-            mostrarMensagem('ℹ️ Nenhum registro com o nome "teste" foi encontrado.', 'info');
-        }
-    });
-}
-
-
-let entrevistas = [];
-
-let cargosAtivos = []; // Variável para armazenar cargos dinâmicos
-try {
-    entrevistas = JSON.parse(localStorage.getItem('entrevistas')) || [];
-} catch (e) {
-    entrevistas = [];
-}
 let cargoSelecionado = null;
 let entrevistaAtual = null;
 let ultimoItemExcluido = null;
@@ -482,7 +483,7 @@ function selecionarNota(botao, competencia) {
     }
 }
 
-function iniciarEntrevista() {
+window.iniciarEntrevista = function () {
     // Coletar dados básicos
     const dadosBasicos = {
         candidatoNome: document.getElementById('candidatoNome').value,
@@ -719,7 +720,7 @@ function alterarCargo() {
 }
 
 // --- Agenda e Google Calendar ---
-function agendarGoogleCalendar() {
+window.agendarGoogleCalendar = function () {
     const nome = document.getElementById('candidatoNome').value;
     const cargoId = document.getElementById('cargo').value;
     const data = document.getElementById('dataEntrevista').value;
@@ -766,7 +767,7 @@ function agendarGoogleCalendar() {
     }, 1000);
 }
 
-function salvarAgendamento() {
+window.salvarAgendamento = function () {
     const dadosBasicos = {
         candidatoNome: document.getElementById('candidatoNome').value,
         cargo: document.getElementById('cargo').value,
@@ -891,7 +892,7 @@ function restaurarRascunho(rascunho) {
     }, 200);
 }
 // --- Agenda ---
-function mudarVisualizacaoAgenda(tipo) {
+window.mudarVisualizacaoAgenda = function (tipo) {
     agendaVisualizacao = tipo;
 
     // Atualizar botões
@@ -913,7 +914,7 @@ function mudarVisualizacaoAgenda(tipo) {
     carregarAgenda();
 }
 
-function carregarAgenda() {
+window.carregarAgenda = function () {
     const container = document.getElementById('agendaContainer');
 
     // Filtrar com base na visualização atual
@@ -999,7 +1000,7 @@ function carregarAgenda() {
     container.innerHTML = html;
 }
 
-function mostrarEdicaoAgendamento(index) {
+window.mostrarEdicaoAgendamento = function (index) {
     const entrevista = entrevistas[index];
     const container = document.getElementById('agendaContainer');
 
@@ -1069,7 +1070,7 @@ function mostrarEdicaoAgendamento(index) {
     `;
 }
 
-function salvarEdicaoAgendamento(index) {
+window.salvarEdicaoAgendamento = function (index) {
     const entrevista = entrevistas[index];
     const cargoId = document.getElementById('editCargo').value;
     const cargoObj = cargosAtivos.find(c => c.id === cargoId);
@@ -2582,8 +2583,16 @@ function atualizarUltimasEntrevistas() {
     container.innerHTML = html;
 }
 
-// --- Backup e Tema ---
-function exportarDados() {
+// Funções de Backup e Exportação
+window.exportarDados = function () {
+    if (entrevistas.length === 0) {
+        alert('Não há dados para exportar.');
+        return;
+    }
+
+    // Parar Cronômetro
+    pararCronometro();
+
     const dados = JSON.stringify(entrevistas, null, 2);
     const blob = new Blob([dados], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -2596,9 +2605,10 @@ function exportarDados() {
     mostrarMensagem('📤 Backup exportado com sucesso!', 'success');
 }
 
-function importarDados() {
+window.importarDados = function () {
     const input = document.getElementById('arquivoBackup');
-    if (!input.files.length) {
+    const arquivo = input.files[0];
+    if (!arquivo) {
         alert('Selecione um arquivo JSON primeiro.');
         return;
     }
