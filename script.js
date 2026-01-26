@@ -55,11 +55,13 @@ window.sincronizarComPlanilha = async function () {
                         const pesosStatus = {
                             'vaga_cancelada': 1000, 'desistencia_candidato': 1000, 'contratado': 1000,
                             'reprovado': 1000, 'reprovado_gerencia': 1000, 'faltou': 1000,
+                            'agendado_gerencia': 600, // Subiu de 400 para 600 (Maior que aprovado na triagem)
                             'aprovado_triagem': 500, 'aprovado': 500,
-                            'agendado_gerencia': 400, 'analise': 300, 'agendado': 100
+                            'analise': 300, 'agendado': 100
                         };
 
-                        const pontosLocal = (entrevistas[indexExistente].respostas ? entrevistas[indexExistente].respostas.length : 0) + (pesosStatus[entrevistas[indexExistente].status] || 0);
+                        const extraLocal = (entrevistas[indexExistente].dadosGerencia ? 100 : 0);
+                        const pontosLocal = (entrevistas[indexExistente].respostas ? entrevistas[indexExistente].respostas.length : 0) + (pesosStatus[entrevistas[indexExistente].status] || 0) + extraLocal;
                         const pontosPlanilha = (item.respostas ? item.respostas.length : 0) + (pesosStatus[item.status] || 0);
 
                         if (pontosPlanilha > pontosLocal) {
