@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -20,6 +22,7 @@
 
         <div class="tabs">
             <button class="tab-btn active" data-tab="entrevista">🎯 Nova Entrevista</button>
+            <button class="tab-btn" data-tab="painel-dia">📅 Painel do Dia</button>
             <button class="tab-btn" data-tab="agenda">📅 Agenda</button>
             <button class="tab-btn" data-tab="historico">📊 Histórico</button>
             <button class="tab-btn" data-tab="relatorio">📄 Relatório PDF</button>
@@ -54,11 +57,14 @@
                                     <span>⏱️ <span id="cargoDuracao"></span></span>
                                 </div>
                             </div>
-                            
+
                             <div class="cargo-script">
-                                <div class="script-item"><strong>💰 Salário:</strong> <span id="cargoSalario"></span></div>
-                                <div class="script-item"><strong>🎁 Benefícios:</strong> <span id="cargoBeneficios"></span></div>
-                                <div class="script-item"><strong>⏰ Horário:</strong> <span id="cargoHorario"></span></div>
+                                <div class="script-item"><strong>💰 Salário:</strong> <span id="cargoSalario"></span>
+                                </div>
+                                <div class="script-item"><strong>🎁 Benefícios:</strong> <span
+                                        id="cargoBeneficios"></span></div>
+                                <div class="script-item"><strong>⏰ Horário:</strong> <span id="cargoHorario"></span>
+                                </div>
                             </div>
 
                             <button type="button" class="btn-secondary btn-small" onclick="alterarCargo()">
@@ -104,7 +110,7 @@
                                 💾 Salvar na Agenda
                             </button>
                         </div>
-                        
+
                         <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
                         <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
@@ -132,17 +138,20 @@
 
                         <div class="form-group">
                             <label for="pontosFortes">Pontos Fortes do Candidato</label>
-                            <textarea id="pontosFortes" placeholder="Liste os principais pontos positivos observados..."></textarea>
+                            <textarea id="pontosFortes"
+                                placeholder="Liste os principais pontos positivos observados..."></textarea>
                         </div>
 
                         <div class="form-group">
                             <label for="pontosMelhorar">Pontos a Melhorar</label>
-                            <textarea id="pontosMelhorar" placeholder="Áreas que precisam de desenvolvimento..."></textarea>
+                            <textarea id="pontosMelhorar"
+                                placeholder="Áreas que precisam de desenvolvimento..."></textarea>
                         </div>
 
                         <div class="form-group">
                             <label for="observacoes">Observações Gerais</label>
-                            <textarea id="observacoes" placeholder="Anotações adicionais sobre a entrevista..."></textarea>
+                            <textarea id="observacoes"
+                                placeholder="Anotações adicionais sobre a entrevista..."></textarea>
                         </div>
 
                         <div class="form-group">
@@ -175,6 +184,24 @@
             </div>
         </div>
 
+        <!-- ABA: PAINEL DO DIA -->
+        <div class="tab-content" id="tab-painel-dia">
+            <div class="card">
+                <div class="card-header" style="justify-content: space-between; align-items: center; display: flex;">
+                    <h2>📅 Painel do Dia: <span id="dataPainelTitulo">--/--/----</span></h2>
+                    <input type="date" id="dataFiltroPainel" class="btn-small"
+                        style="padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
+                </div>
+                <div class="painel-resumo-dia" id="painelResumoDia"
+                    style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <!-- Preenchido via JS -->
+                </div>
+                <div id="painelDiaContainer" class="agenda-container">
+                    <!-- Entrevistas do dia carregadas via JS -->
+                </div>
+            </div>
+        </div>
+
         <!-- ABA: AGENDA -->
         <div class="tab-content" id="tab-agenda">
             <div class="card">
@@ -182,8 +209,10 @@
                     <h2>📅 Agenda de Entrevistas</h2>
                 </div>
                 <div class="agenda-controls">
-                    <button class="btn btn-small active" id="btnAgendaTriagem" onclick="mudarVisualizacaoAgenda('triagem')">📋 Triagem Inicial</button>
-                    <button class="btn btn-small btn-secondary" id="btnAgendaGerencia" onclick="mudarVisualizacaoAgenda('gerencia')">👔 Entrevista Gerência</button>
+                    <button class="btn btn-small active" id="btnAgendaTriagem"
+                        onclick="mudarVisualizacaoAgenda('triagem')">📋 Triagem Inicial</button>
+                    <button class="btn btn-small btn-secondary" id="btnAgendaGerencia"
+                        onclick="mudarVisualizacaoAgenda('gerencia')">👔 Entrevista Gerência</button>
                 </div>
                 <div id="agendaContainer" class="agenda-container">
                     <!-- Agenda carregada via JS -->
@@ -227,7 +256,7 @@
         <div class="tab-content" id="tab-relatorio">
             <div class="card">
                 <h2>📄 Gerar Relatório PDF</h2>
-                
+
                 <div class="form-group">
                     <label for="selecionarEntrevistaRelatorio">Selecionar Entrevista</label>
                     <select id="selecionarEntrevistaRelatorio">
@@ -254,7 +283,7 @@
         <div class="tab-content" id="tab-estatisticas">
             <div class="card">
                 <h2>📈 Estatísticas do Processo Seletivo</h2>
-                
+
                 <div class="stats-container">
                     <div class="stat-card">
                         <div class="stat-icon">📋</div>
@@ -305,14 +334,14 @@
             <div class="card">
                 <h2>⚙️ Gerenciamento de Dados</h2>
                 <p>Faça o backup dos seus dados ou restaure de um arquivo salvo anteriormente.</p>
-                
+
                 <div class="backup-actions">
                     <div class="backup-card">
                         <h3>📤 Exportar Dados</h3>
                         <p>Baixe um arquivo JSON com todo o histórico de entrevistas.</p>
                         <button class="btn btn-primary" onclick="exportarDados()">Baixar Backup</button>
                     </div>
-                    
+
                     <div class="backup-card">
                         <h3>📥 Importar Dados</h3>
                         <p>Restaure entrevistas de um arquivo de backup (substitui ou mescla).</p>
@@ -396,14 +425,18 @@
                     </div>
                     <div class="form-group">
                         <label>Observações Internas (Visível apenas para RH)</label>
-                        <textarea id="editCargoObservacoes" rows="2" placeholder="Anotações sobre o perfil, dicas para o entrevistador..."></textarea>
+                        <textarea id="editCargoObservacoes" rows="2"
+                            placeholder="Anotações sobre o perfil, dicas para o entrevistador..."></textarea>
                     </div>
-                    
-                    <h4 style="margin: 20px 0 10px; color: #6a0dad; border-bottom: 1px solid #eee;">❓ Perguntas da Entrevista</h4>
-                    <div id="containerPerguntasEditor" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;">
+
+                    <h4 style="margin: 20px 0 10px; color: #6a0dad; border-bottom: 1px solid #eee;">❓ Perguntas da
+                        Entrevista</h4>
+                    <div id="containerPerguntasEditor"
+                        style="max-height: 300px; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;">
                         <!-- Perguntas dinâmicas -->
                     </div>
-                    <button class="btn btn-secondary btn-small" onclick="adicionarPerguntaEditor()">➕ Adicionar Pergunta</button>
+                    <button class="btn btn-secondary btn-small" onclick="adicionarPerguntaEditor()">➕ Adicionar
+                        Pergunta</button>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" onclick="fecharModalCargo()">Cancelar</button>
@@ -423,7 +456,8 @@
                     <input type="hidden" id="indexGerencia">
                     <div class="form-group">
                         <label>Candidato</label>
-                        <input type="text" id="nomeCandidatoGerencia" disabled style="background: #f0f0f0; color: #666;">
+                        <input type="text" id="nomeCandidatoGerencia" disabled
+                            style="background: #f0f0f0; color: #666;">
                     </div>
                     <div class="form-group">
                         <label>Data da Entrevista *</label>
@@ -439,7 +473,8 @@
                     </div>
                     <div class="form-group">
                         <label>Observações para o Gerente</label>
-                        <textarea id="obsGerencia" rows="3" placeholder="Pontos de atenção ou foco da entrevista..."></textarea>
+                        <textarea id="obsGerencia" rows="3"
+                            placeholder="Pontos de atenção ou foco da entrevista..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -457,13 +492,16 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="indexResultadoGerencia">
-                    <p style="margin-bottom: 20px;">Defina o resultado da entrevista com a gerência para <strong id="nomeCandidatoResultado" style="color: #8a2be2;"></strong>:</p>
-                    
+                    <p style="margin-bottom: 20px;">Defina o resultado da entrevista com a gerência para <strong
+                            id="nomeCandidatoResultado" style="color: #8a2be2;"></strong>:</p>
+
                     <div style="display: flex; gap: 10px; flex-direction: column;">
-                        <button class="btn btn-success" style="justify-content: center; padding: 15px;" onclick="salvarResultadoGerencia('contratado')">
+                        <button class="btn btn-success" style="justify-content: center; padding: 15px;"
+                            onclick="salvarResultadoGerencia('contratado')">
                             ✅ CONTRATAR CANDIDATO
                         </button>
-                        <button class="btn btn-danger" style="justify-content: center; padding: 15px;" onclick="salvarResultadoGerencia('reprovado_gerencia')">
+                        <button class="btn btn-danger" style="justify-content: center; padding: 15px;"
+                            onclick="salvarResultadoGerencia('reprovado_gerencia')">
                             ❌ REPROVAR NA GERÊNCIA
                         </button>
                     </div>
@@ -475,4 +513,5 @@
     <script src="cargos.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>

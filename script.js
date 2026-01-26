@@ -17,6 +17,7 @@ const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbziYqw4CANDC_
 // Inicialização do sistema
 document.addEventListener('DOMContentLoaded', function() {
     verificarAcesso(); // Inicia a proteção de login
+    verificarCompatibilidadeDados(); // Garante que dados antigos funcionem
     inicializarSistema();
     carregarDados();
     configurarEventos();
@@ -47,6 +48,12 @@ function inicializarSistema() {
     
     // Configurar sistema de abas
     configurarAbas();
+
+    // Configurar Data Inicial do Painel do Dia
+    const painelFiltro = document.getElementById('dataFiltroPainel');
+    if (painelFiltro) {
+        painelFiltro.value = `${ano}-${mes}-${dia}`;
+    }
 
     // --- INJEÇÃO DE CAMPOS NOVOS (Link e Botões de Relatório) ---
     // 1. Campo de Link da Reunião no formulário principal
@@ -101,6 +108,9 @@ function carregarDados() {
     // Carregar histórico
     carregarHistoricoEntrevistas();
     
+    // Carregar Painel do Dia
+    carregarPainelDia();
+
     // Atualizar select de relatório
     atualizarSelectRelatorio();
 }
@@ -144,6 +154,14 @@ function configurarEventos() {
     ['filtroStatus', 'filtroCargoHistorico', 'filtroDataInicio', 'filtroDataFim'].forEach(id => {
         document.getElementById(id).addEventListener('change', () => carregarHistoricoEntrevistas(document.getElementById('buscarEntrevista').value));
     });
+
+    // Eventos do Painel do Dia
+    const filtroPainel = document.getElementById('dataFiltroPainel');
+    if (filtroPainel) {
+        filtroPainel.addEventListener('change', function() {
+            carregarPainelDia(this.value);
+        });
+    }
 
     // Toggle Dark Mode
     const btnToggleTheme = document.getElementById('toggleDarkMode');
@@ -839,6 +857,7 @@ function carregarAgenda() {
                         `;
                     } else {
                         botoes = `
+                            <button class="btn btn-small btn-secondary" onclick="mostrarEdicaoGerencia(${realIndex})" style="background: #fff7ed; color: #c2410c; border-color: #fdba74;">✏️ Editar</button>
                             <button class="btn btn-small btn-success" onclick="abrirModalResultadoGerencia(${realIndex})">✅ Resultado</button>
                             <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${realIndex})">🗑️ Cancelar</button>
                         `;
@@ -955,6 +974,193 @@ function salvarEdicaoAgendamento(index) {
     
     mostrarMensagem('✅ Agendamento atualizado!', 'success');
     carregarAgenda();
+    carregarPainelDia(); // Atualizar painel se modificado
+}
+
+// --- Funções de Compatibilidade e Novas Abas ---
+function verificarCompatibilidadeDados() {
+    let alterado = false;
+    entrevistas.forEach(e => {
+        // 1. Garantir IDs únicos
+        if (!e.id) {
+            e.id = `entrevista_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            alterado = true;
+        }
+        // 2. Mapear status antigo 'aprovado' para 'aprovado_triagem'
+        if (e.status === 'aprovado') {
+            e.status = 'aprovado_triagem';
+            alterado = true;
+        }
+        // 3. Garantir que datas tenham o formato correto (YYYY-MM-DD)
+        if (e.dataEntrevista && e.dataEntrevista.includes('/')) {
+             const partes = e.dataEntrevista.split('/');
+             if (partes.length === 3) {
+                 e.dataEntrevista = `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+                 alterado = true;
+             }
+        }
+    });
+    if (alterado) {
+        localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+    }
+}
+
+function carregarPainelDia(dataFiltro = null) {
+    const container = document.getElementById('painelDiaContainer');
+    const resumo = document.getElementById('painelResumoDia');
+    const titulo = document.getElementById('dataPainelTitulo');
+    
+    if (!container || !resumo) return;
+
+    const dataAlvo = dataFiltro || new Date().toISOString().split('T')[0];
+    
+    // Atualizar títulos e campos
+    if (titulo) titulo.textContent = formatarData(dataAlvo);
+    if (!dataFiltro && document.getElementById('dataFiltroPainel')) {
+        document.getElementById('dataFiltroPainel').value = dataAlvo;
+    }
+
+    // Filtrar entrevistas daquele dia (tanto triagem quanto gerência)
+    const entrevistasDoDia = entrevistas.filter(e => {
+        // Para gerência, a data pode estar em dadosGerencia ou ser a dataEntrevista (agendamento)
+        const dataGerencia = e.dadosGerencia ? e.dadosGerencia.data : null;
+        const statusValido = ['agendado', 'agendado_gerencia', 'analise'].includes(e.status);
+        
+        if (e.status === 'agendado_gerencia') {
+            return dataGerencia === dataAlvo;
+        }
+        return e.dataEntrevista === dataAlvo && statusValido;
+    });
+
+    // Ordenar por hora
+    entrevistasDoDia.sort((a, b) => {
+        const horaA = a.status === 'agendado_gerencia' ? a.dadosGerencia.hora : a.horaEntrevista;
+        const horaB = b.status === 'agendado_gerencia' ? b.dadosGerencia.hora : b.horaEntrevista;
+        return (horaA || '00:00').localeCompare(horaB || '00:00');
+    });
+
+    // Atualizar Resumo
+    const total = entrevistasDoDia.length;
+    const triagem = entrevistasDoDia.filter(e => e.status === 'agendado').length;
+    const gerencia = entrevistasDoDia.filter(e => e.status === 'agendado_gerencia').length;
+
+    resumo.innerHTML = `
+        <div class="stat-card" style="padding: 15px; background: #f8f9fa;">
+            <div class="stat-number">${total}</div>
+            <div class="stat-label">Total do Dia</div>
+        </div>
+        <div class="stat-card" style="padding: 15px; background: #e8f0fe; color: #1967d2;">
+            <div class="stat-number">${triagem}</div>
+            <div class="stat-label">📋 Triagens</div>
+        </div>
+        <div class="stat-card" style="padding: 15px; background: #fff7ed; color: #c2410c;">
+            <div class="stat-number">${gerencia}</div>
+            <div class="stat-label">👔 Gerência</div>
+        </div>
+    `;
+
+    if (total === 0) {
+        container.innerHTML = `<div class="no-data">Nenhuma atividade agendada para este dia.</div>`;
+        return;
+    }
+
+    let html = '';
+    entrevistasDoDia.forEach(item => {
+        const realIndex = entrevistas.indexOf(item);
+        const hora = item.status === 'agendado_gerencia' ? item.dadosGerencia.hora : (item.horaEntrevista || '??:??');
+        const tipo = item.status === 'agendado_gerencia' ? '👔 GERÊNCIA' : '📋 TRIAGEM';
+        const corTipo = item.status === 'agendado_gerencia' ? '#c2410c' : '#1967d2';
+        
+        html += `
+            <div class="agenda-item" style="border-left: 5px solid ${corTipo};">
+                <div>
+                    <span class="agenda-hora" style="font-size: 1.2em; font-weight: bold;">${hora}</span> 
+                    <span style="font-size: 0.8em; padding: 2px 8px; border-radius: 10px; background: ${corTipo}22; color: ${corTipo}; margin-left: 10px; font-weight: bold;">${tipo}</span>
+                    <div style="margin-top: 5px;">
+                        <strong>${item.candidatoNome}</strong> - ${item.cargoNome}
+                        ${item.status === 'agendado_gerencia' ? `<br><small>Com: ${item.dadosGerencia.gerente}</small>` : ''}
+                    </div>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    ${item.status === 'agendado_gerencia' ? 
+                        `<button class="btn btn-small btn-primary" onclick="mostrarEdicaoGerencia(${realIndex})">✏️ Editar</button>
+                         <button class="btn btn-small btn-success" onclick="abrirModalResultadoGerencia(${realIndex})">✅ Resultado</button>` :
+                        `<button class="btn btn-small btn-secondary" onclick="mostrarEdicaoAgendamento(${realIndex})">✏️ Editar</button>
+                         <button class="btn btn-small" onclick="editarEntrevista(${realIndex})">▶️ Iniciar</button>`
+                    }
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function mostrarEdicaoGerencia(index) {
+    const entrevista = entrevistas[index];
+    const container = (document.getElementById('tab-painel-dia').classList.contains('active')) ? 
+                      document.getElementById('painelDiaContainer') : 
+                      document.getElementById('agendaContainer');
+    
+    if (!entrevista.dadosGerencia) {
+        entrevista.dadosGerencia = { data: entrevista.dataEntrevista, hora: '', gerente: '', observacoes: '' };
+    }
+
+    container.innerHTML = `
+        <div class="card-edicao" style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border: 1px solid #c2410c;">
+           <h3 style="color: #c2410c; margin-bottom: 15px;">✏️ Editar Entrevista Gerência</h3>
+           <p><strong>Candidato:</strong> ${entrevista.candidatoNome}</p>
+           
+           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Data Gerência</label>
+                    <input type="date" id="editDataG" value="${entrevista.dadosGerencia.data}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+                
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Hora Gerência</label>
+                    <input type="time" id="editHoraG" value="${entrevista.dadosGerencia.hora}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Nome do Gerente</label>
+                    <input type="text" id="editGerenteG" value="${entrevista.dadosGerencia.gerente}" placeholder="Nome do gerente que fará a entrevista" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Observações para Gerência</label>
+                    <textarea id="editObsG" rows="3" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">${entrevista.dadosGerencia.observacoes || ''}</textarea>
+                </div>
+            </div>
+
+            <div style="margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="carregarAgenda(); carregarPainelDia();" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button onclick="salvarEdicaoGerencia(${index})" style="padding: 10px 20px; background: #c2410c; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    💾 Salvar Alterações
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function salvarEdicaoGerencia(index) {
+    const entrevista = entrevistas[index];
+    
+    entrevista.dadosGerencia = {
+        data: document.getElementById('editDataG').value,
+        hora: document.getElementById('editHoraG').value,
+        gerente: document.getElementById('editGerenteG').value,
+        observacoes: document.getElementById('editObsG').value
+    };
+
+    localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+    enviarParaGoogleSheets(entrevista);
+    
+    mostrarMensagem('✅ Dados da gerência atualizados!', 'success');
+    carregarAgenda();
+    carregarPainelDia();
 }
 
 // Histórico de Entrevistas
