@@ -3,30 +3,39 @@ console.log('Script principal carregado!');
 
 // Vincular funções ao escopo global explicitamente para evitar ReferenceErrors
 window.sincronizarComPlanilha = async function () {
-    console.log('Botão Sincronizar clicado');
+    console.log('--- Iniciando Sincronização ---');
     if (!GOOGLE_SCRIPT_URL) {
         alert('⚠️ Erro: URL do Google Script não configurada.');
         return;
     }
 
-    mostrarMensagem('🔄 Iniciando sincronização com a Planilha...', 'info');
+    // Limpa a URL de espaços em branco acidentais
+    const urlLimpa = GOOGLE_SCRIPT_URL.trim();
+    mostrarMensagem('🔄 Conectando à Planilha...', 'info');
 
     try {
-        // Adiciona timestamp para evitar cache do navegador
-        const urlComCache = `${GOOGLE_SCRIPT_URL}?action=read&t=${Date.now()}`;
+        const urlFinal = `${urlLimpa}?action=read&t=${Date.now()}`;
+        console.log('Chamando URL:', urlFinal);
 
-        const response = await fetch(urlComCache);
+        const response = await fetch(urlFinal, {
+            method: 'GET',
+            cache: 'no-store',
+            mode: 'cors',
+            redirect: 'follow'
+        });
+
+        console.log('Status da Resposta:', response.status);
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(`Erro Servidor: ${response.status} ${response.statusText}`);
         }
 
         const dadosPlanilha = await response.json();
-        console.log('Dados recebidos:', dadosPlanilha);
+        console.log('Dados processados:', dadosPlanilha);
 
         if (Array.isArray(dadosPlanilha)) {
             if (dadosPlanilha.length === 0) {
-                mostrarMensagem('ℹ️ A planilha foi acessada, mas não encontramos registros nela.', 'info');
+                mostrarMensagem('ℹ️ Sincronizado, mas a planilha parece estar vazia.', 'info');
                 return;
             }
 
@@ -34,7 +43,6 @@ window.sincronizarComPlanilha = async function () {
             let novosRegistros = 0;
 
             dadosPlanilha.forEach(item => {
-                // Pequena validação do item para garantir que é um registro de entrevista
                 if (item && item.candidatoNome && !idsExistentes.has(item.id)) {
                     entrevistas.push(item);
                     novosRegistros++;
@@ -43,28 +51,29 @@ window.sincronizarComPlanilha = async function () {
 
             if (novosRegistros > 0) {
                 localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-                const duplicatasRemovidas = removerDuplicatas(); // Limpeza extra após sync
+                const duplicatasRemovidas = removerDuplicatas();
                 carregarDados();
                 let msg = `✅ Sucesso! ${novosRegistros} entrevistas recuperadas.`;
-                if (duplicatasRemovidas > 0) msg += ` (${duplicatasRemovidas} duplicatas ignoradas)`;
+                if (duplicatasRemovidas > 0) msg += ` (${duplicatasRemovidas} duplicatas limpas)`;
                 mostrarMensagem(msg, 'success');
             } else {
-                mostrarMensagem('ℹ️ Sincronizado! Você já tem todas as entrevistas da planilha no seu computador.', 'info');
+                mostrarMensagem('ℹ️ Seu sistema já está atualizado com todos os dados da planilha.', 'info');
             }
         } else {
-            console.error('Resposta inválida do Google Script:', dadosPlanilha);
-            mostrarMensagem('❌ A planilha respondeu em um formato inesperado. Verifique o código do Script.', 'error');
+            console.warn('Formato inesperado:', dadosPlanilha);
+            mostrarMensagem('❌ A planilha enviou dados em formato inválido. Verifique o Script do Google.', 'error');
         }
     } catch (erro) {
-        console.error('Erro detalhado na sincronização:', erro);
+        console.error('ERRO NA SINCRONIZAÇÃO:', erro);
 
-        let msgErro = '❌ Erro ao conectar com a planilha.';
-        if (erro.message.includes('fetch')) msgErro = '❌ Erro de rede ou DNS. Verifique sua internet ou a URL.';
-        if (erro.message.includes('JSON')) msgErro = '❌ Erro no formato dos dados retornados pela planilha.';
+        let msgAux = 'Verifique se clicou em "Implantar > Nova Implantação" no Google.';
+        if (erro.name === 'AbortError') msgAux = 'A conexão demorou muito e foi cancelada.';
+        if (erro.message.includes('CORS') || erro.message.includes('fetch')) {
+            msgAux = 'Bloqueio de segurança ou erro de rede. Certifique-se de que a URL termina em <b>/exec</b> e o acesso é para <b>"Qualquer pessoa"</b>.';
+        }
 
-        mostrarMensagem(`${msgErro} <br><small>Certifique-se de que clicou em <b>"Implantar > Nova Implantação"</b> e escolheu <b>"Qualquer pessoa"</b> no Google Script.</small>`, 'error');
+        mostrarMensagem(`❌ Falha na Sincronização.<br><small>${msgAux}</small>`, 'error');
     }
-
 };
 
 // Função para remover duplicatas (Nome + Cargo + Data)
