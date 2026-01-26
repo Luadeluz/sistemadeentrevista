@@ -238,6 +238,8 @@
                             <option value="agendado_gerencia">Agendados (Gerência)</option>
                             <option value="contratado">Contratados</option>
                             <option value="reprovado_gerencia">Reprovados (Gerência)</option>
+                            <option value="vaga_cancelada">Vaga Cancelada</option>
+                            <option value="desistencia_candidato">Desistência Candidato</option>
                         </select>
                     </div>
                 </div>
@@ -519,6 +521,18 @@
                         <button class="btn btn-danger" style="justify-content: center; padding: 15px;"
                             onclick="salvarResultadoGerencia('reprovado_gerencia')">
                             ❌ REPROVAR NA GERÊNCIA
+                        </button>
+
+                        <button class="btn btn-secondary"
+                            style="justify-content: center; padding: 12px; background: #e5e7eb; color: #4b5563; border: 1px solid #d1d5db;"
+                            onclick="salvarResultadoGerencia('vaga_cancelada')">
+                            🚫 VAGA CANCELADA
+                        </button>
+
+                        <button class="btn btn-secondary"
+                            style="justify-content: center; padding: 12px; background: #f3f4f6; color: #6b7280; border: 1px dashed #9ca3af;"
+                            onclick="salvarResultadoGerencia('desistencia_candidato')">
+                            🚶 DESISTÊNCIA DO CANDIDATO
                         </button>
                     </div>
                 </div>

@@ -1095,70 +1095,6 @@ window.salvarEdicaoAgendamento = function (index) {
     carregarPainelDia(); // Atualizar painel se modificado
 }
 
-function mostrarEdicaoGerencia(index) {
-    const entrevista = entrevistas[index];
-    const container = document.getElementById('agendaContainer');
-    if (!entrevista.dadosGerencia) {
-        entrevista.dadosGerencia = { data: '', hora: '', gerente: '', obs: '' };
-    }
-
-    container.innerHTML = `
-        <div class="card-edicao" style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-           <h3 style="color: #6a0dad; margin-bottom: 15px;">✏️ Editar Dados da Gerência</h3>
-           <p style="margin-bottom: 15px;">Candidato: <strong>${entrevista.candidatoNome}</strong></p>
-           
-           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div class="form-group">
-                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Data Gerência</label>
-                    <input type="date" id="editDataGerencia" value="${entrevista.dadosGerencia.data}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
-                </div>
-
-                <div class="form-group">
-                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Horário Gerência</label>
-                    <input type="time" id="editHoraGerencia" value="${entrevista.dadosGerencia.hora}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
-                </div>
-
-                <div class="form-group" style="grid-column: 1 / -1;">
-                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Nome do Gerente</label>
-                    <input type="text" id="editGerente" value="${entrevista.dadosGerencia.gerente}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
-                </div>
-
-                <div class="form-group" style="grid-column: 1 / -1;">
-                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">Observações Gerência</label>
-                    <textarea id="editObsGerencia" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; min-height:80px;">${entrevista.dadosGerencia.obs || ''}</textarea>
-                </div>
-            </div>
-
-            <div style="margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end;">
-                <button onclick="carregarAgenda()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    Cancelar
-                </button>
-                <button onclick="salvarEdicaoGerencia(${index})" style="padding: 10px 20px; background: #6a0dad; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    💾 Salvar Alterações
-                </button>
-            </div>
-        </div>
-    `;
-}
-
-function salvarEdicaoGerencia(index) {
-    const entrevista = entrevistas[index];
-
-    entrevista.dadosGerencia = {
-        data: document.getElementById('editDataGerencia').value,
-        hora: document.getElementById('editHoraGerencia').value,
-        gerente: document.getElementById('editGerente').value,
-        obs: document.getElementById('editObsGerencia').value
-    };
-
-    localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-    enviarParaGoogleSheets(entrevista);
-
-    mostrarMensagem('✅ Dados da Gerência atualizados!', 'success');
-    carregarAgenda();
-    carregarPainelDia();
-}
-
 // --- Funções de Compatibilidade e Novas Abas ---
 function verificarCompatibilidadeDados() {
     let alterado = false;
@@ -1202,16 +1138,16 @@ function carregarPainelDia(dataFiltro = null) {
         document.getElementById('dataFiltroPainel').value = dataAlvo;
     }
 
-    // Filtrar entrevistas daquele dia (tanto triagem quanto gerência)
+    // Filtrar entrevistas daquele dia (tanto agendadas quanto já realizadas)
     const entrevistasDoDia = entrevistas.filter(e => {
-        // Para gerência, a data pode estar em dadosGerencia ou ser a dataEntrevista (agendamento)
+        // Data principal (agendamento)
         const dataGerencia = e.dadosGerencia ? e.dadosGerencia.data : null;
-        const statusValido = ['agendado', 'agendado_gerencia', 'analise'].includes(e.status);
+        const dataPrinc = (e.status === 'agendado_gerencia' || e.dadosGerencia) ? (dataGerencia || e.dataEntrevista) : e.dataEntrevista;
 
-        if (e.status === 'agendado_gerencia') {
-            return dataGerencia === dataAlvo;
-        }
-        return e.dataEntrevista === dataAlvo && statusValido;
+        // Data de finalização (opcional)
+        const dataFim = e.dataFinalizacao ? e.dataFinalizacao.split('T')[0] : null;
+
+        return dataPrinc === dataAlvo || dataFim === dataAlvo;
     });
 
     // Ordenar por hora
@@ -1249,26 +1185,33 @@ function carregarPainelDia(dataFiltro = null) {
     let html = '';
     entrevistasDoDia.forEach(item => {
         const realIndex = entrevistas.indexOf(item);
-        const hora = item.status === 'agendado_gerencia' ? item.dadosGerencia.hora : (item.horaEntrevista || '??:??');
-        const tipo = item.status === 'agendado_gerencia' ? '👔 GERÊNCIA' : '📋 TRIAGEM';
-        const corTipo = item.status === 'agendado_gerencia' ? '#c2410c' : '#1967d2';
+        const hora = (item.dadosGerencia && item.dadosGerencia.hora) ? item.dadosGerencia.hora : (item.horaEntrevista || '??:??');
+
+        let labelStatus = '';
+        let corStatus = '#666';
+
+        if (item.status === 'agendado') { labelStatus = '📋 TRIAGEM PENDENTE'; corStatus = '#1967d2'; }
+        else if (item.status === 'agendado_gerencia') { labelStatus = '👔 GERÊNCIA AGENDADA'; corStatus = '#c2410c'; }
+        else if (item.status === 'contratado') { labelStatus = '✅ CONTRATADO'; corStatus = '#059669'; }
+        else if (item.status === 'reprovado' || item.status === 'reprovado_gerencia') { labelStatus = '❌ REPROVADO'; corStatus = '#dc2626'; }
+        else if (item.status === 'vaga_cancelada') { labelStatus = '🚫 VAGA CANCELADA'; corStatus = '#4b5563'; }
+        else if (item.status === 'desistencia_candidato') { labelStatus = '🚶 DESISTÊNCIA'; corStatus = '#6b7280'; }
+        else { labelStatus = item.status.toUpperCase(); }
 
         html += `
-            <div class="agenda-item" style="border-left: 5px solid ${corTipo};">
-                <div>
-                    <span class="agenda-hora" style="font-size: 1.2em; font-weight: bold;">${hora}</span> 
-                    <span style="font-size: 0.8em; padding: 2px 8px; border-radius: 10px; background: ${corTipo}22; color: ${corTipo}; margin-left: 10px; font-weight: bold;">${tipo}</span>
-                    <div style="margin-top: 5px;">
-                        <strong>${item.candidatoNome}</strong> - ${item.cargoNome}
-                        ${item.status === 'agendado_gerencia' ? `<br><small>Com: ${item.dadosGerencia.gerente}</small>` : ''}
+            <div class="agenda-item" style="border-left: 5px solid ${corStatus}; padding: 15px; margin-bottom: 10px; background: ${item.status === 'agendado' || item.status === 'agendado_gerencia' ? '#fff' : '#f8fafc'}; opacity: ${item.status === 'agendado' || item.status === 'agendado_gerencia' ? '1' : '0.8'};">
+                <div style="flex: 1;">
+                    <span class="agenda-hora" style="font-size: 1.1em; font-weight: bold;">${hora}</span> 
+                    <span style="font-size: 0.75em; padding: 2px 8px; border-radius: 12px; background: ${corStatus}15; color: ${corStatus}; margin-left: 10px; font-weight: bold; border: 1px solid ${corStatus}33;">${labelStatus}</span>
+                    <div style="margin-top: 8px;">
+                        <strong style="font-size: 1.1em;">${item.candidatoNome}</strong> - ${item.cargoNome}
+                        ${item.dadosGerencia && item.dadosGerencia.gerente ? `<br><small style="color: #666;">👔 Gerente: ${item.dadosGerencia.gerente}</small>` : ''}
                     </div>
                 </div>
-                <div style="display: flex; gap: 5px;">
-                    ${item.status === 'agendado_gerencia' ?
-                `<button class="btn btn-small btn-primary" onclick="mostrarEdicaoGerencia(${realIndex})">✏️ Editar</button>
-                         <button class="btn btn-small btn-success" onclick="abrirModalResultadoGerencia(${realIndex})">✅ Resultado</button>` :
-                `<button class="btn btn-small btn-secondary" onclick="mostrarEdicaoAgendamento(${realIndex})">✏️ Editar</button>
-                         <button class="btn btn-small" onclick="editarEntrevista(${realIndex})">▶️ Iniciar</button>`
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    ${(item.status === 'agendado' || item.status === 'agendado_gerencia' || item.status === 'analise' || item.status === 'aprovado_triagem') ?
+                `<button class="btn btn-small" onclick="${item.status === 'agendado_gerencia' ? `abrirModalResultadoGerencia(${realIndex})` : `editarEntrevista(${realIndex})`}" style="background: ${corStatus};">▶️ Iniciar/Finalizar</button>` :
+                `<button class="btn btn-small btn-secondary" onclick="verDetalhesEntrevista(${realIndex})" title="Ver resumo">👁️ Ver</button>`
             }
                 </div>
             </div>
@@ -1278,7 +1221,7 @@ function carregarPainelDia(dataFiltro = null) {
     container.innerHTML = html;
 }
 
-function mostrarEdicaoGerencia(index) {
+window.mostrarEdicaoGerencia = function (index) {
     const entrevista = entrevistas[index];
     const container = (document.getElementById('tab-painel-dia').classList.contains('active')) ?
         document.getElementById('painelDiaContainer') :
@@ -1327,7 +1270,7 @@ function mostrarEdicaoGerencia(index) {
     `;
 }
 
-function salvarEdicaoGerencia(index) {
+window.salvarEdicaoGerencia = function (index) {
     const entrevista = entrevistas[index];
 
     entrevista.dadosGerencia = {
@@ -1493,19 +1436,38 @@ function carregarHistoricoEntrevistas(filtro = '') {
         `;
     };
 
+    window.toggleSecaoHistorico = function (id) {
+        const conteudo = document.getElementById(id);
+        const icon = document.getElementById('icon-' + id);
+        if (conteudo.classList.contains('hidden-secao')) {
+            conteudo.classList.remove('hidden-secao');
+            icon.textContent = '▼';
+        } else {
+            conteudo.classList.add('hidden-secao');
+            icon.textContent = '▶';
+        }
+    };
+
+
     container.innerHTML = `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
-            <div>
-                <h3 style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
-                    📅 Agendadas / Em Andamento (${agendadas.length})
+            <div class="secao-historico">
+                <h3 onclick="toggleSecaoHistorico('secao-agendadas')" style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                    <span>📅 Agendadas / Em Andamento (${agendadas.length})</span>
+                    <span id="icon-secao-agendadas" style="font-size: 0.8em; opacity: 0.6;">▼</span>
                 </h3>
-                ${agendadas.length ? agendadas.map(gerarCard).join('') : '<div class="no-data">Nenhum agendamento encontrado.</div>'}
+                <div id="secao-agendadas" class="conteudo-secao">
+                    ${agendadas.length ? agendadas.map(gerarCard).join('') : '<div class="no-data">Nenhum agendamento encontrado.</div>'}
+                </div>
             </div>
-            <div>
-                <h3 style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
-                    ✅ Histórico (${realizadas.length})
+            <div class="secao-historico">
+                <h3 onclick="toggleSecaoHistorico('secao-realizadas')" style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                    <span>✅ Histórico (${realizadas.length})</span>
+                    <span id="icon-secao-realizadas" style="font-size: 0.8em; opacity: 0.6;">▼</span>
                 </h3>
-                ${realizadas.length ? realizadas.map(gerarCard).join('') : '<div class="no-data">Nenhuma entrevista realizada encontrada.</div>'}
+                <div id="secao-realizadas" class="conteudo-secao">
+                    ${realizadas.length ? realizadas.map(gerarCard).join('') : '<div class="no-data">Nenhuma entrevista realizada encontrada.</div>'}
+                </div>
             </div>
         </div>
     `;
@@ -2364,6 +2326,21 @@ function imprimirRelatorio() {
                         color: #1967d2;
                         border: 2px solid #aecbfa;
                     }
+                    .status-final.contratado {
+                        background: #d1fae5;
+                        color: #065f46;
+                        border: 2px solid #10b981;
+                    }
+                    .status-final.vaga_cancelada {
+                        background: #f1f5f9;
+                        color: #475569;
+                        border: 2px solid #cbd5e1;
+                    }
+                    .status-final.desistencia_candidato {
+                        background: #f8fafc;
+                        color: #64748b;
+                        border: 2px dashed #94a3b8;
+                    }
                     @media print {
                         body { margin: 20px; }
                         .no-print { display: none; }
@@ -3075,18 +3052,18 @@ function salvarAgendamentoGerencia() {
     carregarHistoricoEntrevistas();
 }
 
-function abrirModalResultadoGerencia(index) {
+window.abrirModalResultadoGerencia = function (index) {
     const entrevista = entrevistas[index];
     document.getElementById('indexResultadoGerencia').value = index;
     document.getElementById('nomeCandidatoResultado').textContent = entrevista.candidatoNome;
     document.getElementById('modalResultadoGerencia').style.display = 'flex';
-}
+};
 
-function fecharModalResultadoGerencia() {
+window.fecharModalResultadoGerencia = function () {
     document.getElementById('modalResultadoGerencia').style.display = 'none';
-}
+};
 
-function salvarResultadoGerencia(resultado) {
+window.salvarResultadoGerencia = function (resultado) {
     const index = document.getElementById('indexResultadoGerencia').value;
 
     entrevistas[index].status = resultado;
@@ -3096,10 +3073,16 @@ function salvarResultadoGerencia(resultado) {
     enviarParaGoogleSheets(entrevistas[index]);
 
     fecharModalResultadoGerencia();
-    mostrarMensagem(resultado === 'contratado' ? '🎉 Candidato Contratado!' : 'Processo finalizado.', 'success');
+
+    let msg = 'Processo finalizado.';
+    if (resultado === 'contratado') msg = '🎉 Candidato Contratado!';
+    if (resultado === 'vaga_cancelada') msg = '🚫 Vaga marcada como cancelada.';
+    if (resultado === 'desistencia_candidato') msg = '🚶 Registrada desistência do candidato.';
+
+    mostrarMensagem(msg, 'success');
     carregarHistoricoEntrevistas();
-    carregarAgenda(); // Atualiza agenda se estiver aberta
-}
+    carregarAgenda();
+};
 
 async function gerarRelatorioStatusFeedback(modo) {
     const { jsPDF } = window.jspdf;

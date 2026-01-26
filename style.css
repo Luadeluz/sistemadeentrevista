@@ -20,7 +20,7 @@ body.dark-mode {
     color: #e0e0e0;
 }
 
-body.dark-mode .card, 
+body.dark-mode .card,
 body.dark-mode .tabs,
 body.dark-mode .entrevista-item,
 body.dark-mode .stat-card,
@@ -33,8 +33,8 @@ body.dark-mode .relatorio-preview {
     border-color: #374151;
 }
 
-body.dark-mode input, 
-body.dark-mode select, 
+body.dark-mode input,
+body.dark-mode select,
 body.dark-mode textarea,
 body.dark-mode .pergunta-item,
 body.dark-mode .avaliacao-item,
@@ -153,8 +153,15 @@ h1 {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Layout principal */
@@ -226,7 +233,9 @@ label {
     font-size: 14px;
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
     width: 100%;
     padding: 16px;
     border: 1px solid #e1e1e8;
@@ -237,7 +246,9 @@ input, select, textarea {
     color: #333;
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
     border-color: #8a2be2;
     outline: none;
     box-shadow: 0 0 0 4px rgba(138, 43, 226, 0.1);
@@ -314,6 +325,7 @@ textarea {
     color: #4285F4;
     border: 1px solid #4285F4;
 }
+
 .btn-google:hover {
     background: #f0f8ff;
 }
@@ -540,7 +552,7 @@ body.dark-mode .nota-btn {
     margin-bottom: 20px;
     border-left: 5px solid;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
 }
 
 .entrevista-item:hover {
@@ -645,6 +657,18 @@ body.dark-mode .nota-btn {
 .status-reprovado_gerencia {
     background: #fee2e2;
     color: #991b1b;
+}
+
+.status-vaga_cancelada {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+
+.status-desistencia_candidato {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px dashed #94a3b8;
 }
 
 .entrevista-detalhes {
@@ -860,6 +884,7 @@ body.dark-mode .nota-btn {
         opacity: 0;
         transform: translateY(-30px) scale(0.9);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -943,7 +968,7 @@ body.dark-mode .nota-btn {
 }
 
 .agenda-controls .btn.active {
-    box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .agenda-dia {
@@ -970,7 +995,7 @@ body.dark-mode .nota-btn {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .agenda-hora {
@@ -1014,7 +1039,7 @@ body.dark-mode .no-data {
     border: 1px solid #e6e6ff;
     display: flex;
     align-items: center;
-    box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 /* Editor de Cargos */
@@ -1067,49 +1092,65 @@ body.dark-mode .no-data {
     .tabs {
         flex-direction: column;
     }
-    
+
     .tab-btn {
         width: 100%;
         border-radius: 0;
     }
-    
+
     .app-container {
         grid-template-columns: 1fr;
         gap: 20px;
     }
-    
+
     .card-header {
         flex-direction: column;
         align-items: stretch;
     }
-    
+
     .search-container {
         flex-direction: column;
     }
-    
+
     .search-container select {
         width: 100%;
     }
-    
+
     .entrevista-header {
         flex-direction: column;
         align-items: flex-start;
     }
-    
+
     .acoes-entrevista {
         flex-wrap: wrap;
     }
-    
+
     .stats-container {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .acoes-relatorio {
         flex-direction: column;
     }
-    
+
     .form-row {
         flex-direction: column;
         gap: 0;
     }
+}
+
+/* --- Seções Retráteis (Histórico) --- */
+.hidden-secao {
+    display: none !important;
+}
+
+.secao-historico h3 {
+    transition: background 0.2s ease;
+    padding: 5px 10px;
+    margin-left: -10px;
+}
+
+.secao-historico h3:hover {
+    background: rgba(138, 43, 226, 0.08);
+    border-radius: 8px;
 }
