@@ -2620,13 +2620,13 @@ function atualizarEstatisticas() {
                 <span class="step-label">Triagem Inicial</span>
                 <span class="step-value">${total} candidatos (100%)</span>
             </div>
-            <div class="funnel-step" style="width: ${Math.max(40, percGerencia)}%; background: #ff7e5f">
+            <div class="funnel-step" style="width: ${Math.max(60, percGerencia)}%; background: #ff7e5f">
                 <span class="step-label">Entrevista Gerência</span>
-                <span class="step-value">${agendadosGerencia} candidatos (${percGerencia}%)</span>
+                <span class="step-value">${agendadosGerencia} (${percGerencia}%)</span>
             </div>
-            <div class="funnel-step" style="width: ${Math.max(20, percContratado)}%; background: #00b09b">
+            <div class="funnel-step" style="width: ${Math.max(45, percContratado)}%; background: #00b09b">
                 <span class="step-label">Contratados</span>
-                <span class="step-value">${contratados} candidatos (${percContratado}%)</span>
+                <span class="step-value">${contratados} (${percContratado}%)</span>
             </div>
             <div style="text-align: center; margin-top: 15px; font-size: 0.9em; color: #666;">
                 🎯 <strong>Taxa de Eficiência Final:</strong> ${percContratado}% das triagens convertem em contratação.
