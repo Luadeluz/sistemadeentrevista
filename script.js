@@ -15,7 +15,7 @@ let agendaVisualizacao = 'triagem'; // 'triagem' ou 'gerencia'
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbziYqw4CANDC_waumX9zffeuNg2PbB3wJ_y5dI3YTN-2-tjXEBdrD922jUVQvzRfecjdw/exec'; // ⚠️ COLE A URL DO SEU SCRIPT DO GOOGLE AQUI (PASSO 9)
 
 // Inicialização do sistema
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     verificarAcesso(); // Inicia a proteção de login
     verificarCompatibilidadeDados(); // Garante que dados antigos funcionem
     inicializarSistema();
@@ -41,11 +41,11 @@ function inicializarSistema() {
     const mes = String(data.getMonth() + 1).padStart(2, '0');
     const dia = String(data.getDate()).padStart(2, '0');
     document.getElementById('dataEntrevista').value = `${ano}-${mes}-${dia}`;
-    
+
     // Carregar cargos no select
     carregarCargosSelect();
     carregarCargosFiltro();
-    
+
     // Configurar sistema de abas
     configurarAbas();
 
@@ -104,10 +104,10 @@ function inicializarSistema() {
 function carregarDados() {
     // Carregar estatísticas
     atualizarEstatisticas();
-    
+
     // Carregar histórico
     carregarHistoricoEntrevistas();
-    
+
     // Carregar Painel do Dia
     carregarPainelDia();
 
@@ -117,19 +117,19 @@ function carregarDados() {
 
 function configurarEventos() {
     // Evento de seleção de cargo
-    document.getElementById('cargo').addEventListener('change', function() {
+    document.getElementById('cargo').addEventListener('change', function () {
         const cargoId = this.value;
         if (cargoId) {
             selecionarCargo(cargoId);
         } else {
             document.getElementById('cargoInfo').classList.add('hidden');
-            document.getElementById('perguntasContainer').innerHTML = 
+            document.getElementById('perguntasContainer').innerHTML =
                 '<div class="no-data">Selecione um cargo para visualizar as perguntas da entrevista</div>';
         }
     });
-    
+
     // Evento do formulário
-    document.getElementById('formEntrevista').addEventListener('submit', function(e) {
+    document.getElementById('formEntrevista').addEventListener('submit', function (e) {
         e.preventDefault();
         if (cargoSelecionado) {
             iniciarEntrevista();
@@ -137,19 +137,19 @@ function configurarEventos() {
             alert('Por favor, selecione um cargo primeiro.');
         }
     });
-    
+
     // Auto-save: Monitorar mudanças no formulário
     // Otimização: Debounce para evitar travamentos em sessões longas (espera 1s após parar de digitar)
     const salvarRascunhoDebounced = debounce(salvarRascunhoAutomatico, 1000);
     document.getElementById('formEntrevista').addEventListener('input', salvarRascunhoDebounced);
     document.getElementById('perguntasContainer').addEventListener('input', salvarRascunhoDebounced);
     document.getElementById('avaliacaoContainer').addEventListener('click', salvarRascunhoAutomatico); // Para cliques nos botões
-    
+
     // Busca no histórico
-    document.getElementById('buscarEntrevista').addEventListener('input', function() {
+    document.getElementById('buscarEntrevista').addEventListener('input', function () {
         carregarHistoricoEntrevistas(this.value);
     });
-    
+
     // Filtros avançados
     ['filtroStatus', 'filtroCargoHistorico', 'filtroDataInicio', 'filtroDataFim'].forEach(id => {
         document.getElementById(id).addEventListener('change', () => carregarHistoricoEntrevistas(document.getElementById('buscarEntrevista').value));
@@ -158,7 +158,7 @@ function configurarEventos() {
     // Eventos do Painel do Dia
     const filtroPainel = document.getElementById('dataFiltroPainel');
     if (filtroPainel) {
-        filtroPainel.addEventListener('change', function() {
+        filtroPainel.addEventListener('change', function () {
             carregarPainelDia(this.value);
         });
     }
@@ -168,9 +168,9 @@ function configurarEventos() {
     if (btnToggleTheme) {
         btnToggleTheme.addEventListener('click', alternarTema);
     }
-    
+
     // Seleção de entrevista para relatório
-    document.getElementById('selecionarEntrevistaRelatorio').addEventListener('change', function() {
+    document.getElementById('selecionarEntrevistaRelatorio').addEventListener('change', function () {
         const index = this.value;
         if (index !== '') {
             carregarPreviewRelatorio(parseInt(index));
@@ -202,17 +202,17 @@ function configurarEventos() {
 
 function configurarAbas() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function () {
             // Remover active de todas as abas
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
+
             // Adicionar active na aba clicada
             this.classList.add('active');
             document.getElementById(`tab-${this.dataset.tab}`).classList.add('active');
-            
+
             // Ações específicas por aba
-            switch(this.dataset.tab) {
+            switch (this.dataset.tab) {
                 case 'historico':
                     carregarHistoricoEntrevistas();
                     break;
@@ -228,6 +228,9 @@ function configurarAbas() {
                 case 'configuracoes':
                     renderizarListaCargos();
                     break;
+                case 'painel-dia':
+                    carregarPainelDia();
+                    break;
             }
         });
     });
@@ -236,7 +239,7 @@ function configurarAbas() {
 function carregarCargosSelect() {
     const select = document.getElementById('cargo');
     select.innerHTML = '<option value="">Escolha um cargo...</option>';
-    
+
     cargosAtivos.forEach(cargo => {
         const option = document.createElement('option');
         option.value = cargo.id;
@@ -248,7 +251,7 @@ function carregarCargosSelect() {
 function carregarCargosFiltro() {
     const select = document.getElementById('filtroCargoHistorico');
     select.innerHTML = '<option value="">Todos os Cargos</option>';
-    
+
     cargosAtivos.forEach(cargo => {
         const option = document.createElement('option');
         option.value = cargo.nome; // Usando nome para facilitar filtro
@@ -259,23 +262,23 @@ function carregarCargosFiltro() {
 
 function selecionarCargo(cargoId) {
     cargoSelecionado = cargosAtivos.find(c => c.id === cargoId);
-    
+
     if (cargoSelecionado) {
         // Atualizar info do cargo
         document.getElementById('cargoNomeSelecionado').textContent = cargoSelecionado.nome;
         document.getElementById('totalPerguntas').textContent = cargoSelecionado.perguntas.length;
-        
+
         // Atualizar script (salário, benefícios, duração)
         document.getElementById('cargoDuracao').textContent = cargoSelecionado.duracao;
         document.getElementById('cargoSalario').textContent = cargoSelecionado.salario;
         document.getElementById('cargoBeneficios').textContent = cargoSelecionado.beneficios.join(', ');
         document.getElementById('cargoHorario').textContent = cargoSelecionado.horario;
-        
+
         document.getElementById('cargoInfo').classList.remove('hidden');
-        
+
         // Carregar perguntas
         carregarPerguntasCargo();
-        
+
         // Carregar sistema de avaliação
         carregarSistemaAvaliacao();
     }
@@ -283,12 +286,12 @@ function selecionarCargo(cargoId) {
 
 function carregarPerguntasCargo() {
     const container = document.getElementById('perguntasContainer');
-    
+
     if (!cargoSelecionado || cargoSelecionado.perguntas.length === 0) {
         container.innerHTML = '<div class="no-data">Nenhuma pergunta cadastrada para este cargo.</div>';
         return;
     }
-    
+
     let html = '';
     cargoSelecionado.perguntas.forEach((pergunta, index) => {
         html += `
@@ -307,14 +310,14 @@ function carregarPerguntasCargo() {
             </div>
         `;
     });
-    
+
     container.innerHTML = html;
 }
 
 function carregarSistemaAvaliacao() {
     const container = document.getElementById('avaliacaoContainer');
     const competencias = cargoSelecionado.competencias || competenciasPadrao;
-    
+
     let html = '';
     competencias.forEach((competencia, index) => {
         html += `
@@ -334,7 +337,7 @@ function carregarSistemaAvaliacao() {
             </div>
         `;
     });
-    
+
     container.innerHTML = html;
 }
 
@@ -344,14 +347,14 @@ function selecionarNota(botao, competencia) {
     item.querySelectorAll('.nota-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    
+
     // Adicionar active no botão clicado
     botao.classList.add('active');
 
     // Feedback visual para notas baixas (<= 2)
     const nota = parseInt(botao.dataset.nota);
     const motivoContainer = item.querySelector('.motivo-container');
-    
+
     if (nota <= 2) {
         motivoContainer.innerHTML = `
             <input type="text" class="motivo-input motivo-nota-baixa" 
@@ -379,13 +382,13 @@ function iniciarEntrevista() {
         linkReuniao: document.getElementById('linkReuniao') ? document.getElementById('linkReuniao').value : '',
         dataRegistro: new Date().toISOString()
     };
-    
+
     // Validar dados
     if (!dadosBasicos.candidatoNome || !dadosBasicos.entrevistador) {
         alert('Por favor, preencha todos os campos obrigatórios.');
         return;
     }
-    
+
     // Criar objeto da entrevista
     entrevistaAtual = {
         id: `entrevista_${Date.now()}`,
@@ -397,7 +400,7 @@ function iniciarEntrevista() {
         observacoes: '',
         status: 'analise' // Status inicial ao começar a entrevista
     };
-    
+
     // Alertar que entrevista começou
     alert(`Entrevista iniciada para ${dadosBasicos.candidatoNome} - ${cargoSelecionado.nome}`);
 
@@ -412,14 +415,14 @@ function iniciarEntrevista() {
     // 2. Adicionar botão para reexibir dados se necessário
     const cardHeader = form.parentElement.querySelector('h2');
     let btnToggle = document.getElementById('btnToggleForm');
-    
+
     if (!btnToggle) {
         btnToggle = document.createElement('button');
         btnToggle.id = 'btnToggleForm';
         btnToggle.type = 'button';
         btnToggle.className = 'btn btn-small btn-secondary';
         btnToggle.style.fontSize = '14px';
-        btnToggle.onclick = function() {
+        btnToggle.onclick = function () {
             form.classList.toggle('hidden');
             this.textContent = form.classList.contains('hidden') ? '👁️ Ver Dados' : '🙈 Ocultar Dados';
         };
@@ -443,14 +446,14 @@ function salvarEntrevista() {
         alert('Por favor, inicie uma entrevista primeiro.');
         return;
     }
-    
+
     // Parar Cronômetro
     pararCronometro();
 
     // Feedback visual imediato para evitar sensação de travamento
     const btnSalvar = document.querySelector('button[onclick="salvarEntrevista()"]');
     const textoOriginal = btnSalvar ? btnSalvar.innerHTML : '💾 Salvar Entrevista Completa';
-    
+
     if (btnSalvar) {
         btnSalvar.disabled = true;
         btnSalvar.innerHTML = '⏳ Processando...';
@@ -492,25 +495,25 @@ function executarSalvamento(btnSalvar, textoOriginal) {
             resposta: textarea.value.trim()
         });
     });
-    
+
     // Coletar avaliações
     const avaliacoes = {};
     document.querySelectorAll('.avaliacao-item').forEach(item => {
         const competencia = item.dataset.competencia;
         const notaBtn = item.querySelector('.nota-btn.active');
         const nota = notaBtn ? parseInt(notaBtn.dataset.nota) : 0;
-        
+
         // Capturar motivo se houver
         const motivoInput = item.querySelector('.motivo-input');
         const motivo = motivoInput ? motivoInput.value : '';
-        
+
         avaliacoes[competencia] = motivo ? { nota, motivo } : nota;
     });
-    
+
     // Calcular média
     const notas = Object.values(avaliacoes).filter(n => n > 0);
     const media = notas.length > 0 ? (notas.reduce((a, b) => a + b, 0) / notas.length).toFixed(1) : 0;
-    
+
     // Atualizar objeto da entrevista
     entrevistaAtual.respostas = respostas;
     entrevistaAtual.avaliacoes = avaliacoes;
@@ -519,15 +522,15 @@ function executarSalvamento(btnSalvar, textoOriginal) {
     entrevistaAtual.pontosMelhorar = document.getElementById('pontosMelhorar').value;
     entrevistaAtual.observacoes = document.getElementById('observacoes').value;
     entrevistaAtual.duracaoReal = document.getElementById('cronometro').textContent; // Salvar duração
-    
+
     // Coletar status
     const statusRadio = document.querySelector('input[name="status"]:checked');
     let statusFinal = statusRadio ? statusRadio.value : 'analise';
     // Se aprovado na triagem, muda para status específico de fluxo
     if (statusFinal === 'aprovado') statusFinal = 'aprovado_triagem';
-    
+
     entrevistaAtual.status = statusFinal;
-    
+
     // Salvar no banco de dados
     // VERIFICAÇÃO DE DUPLICIDADE: Se já existe ID, atualiza. Se não, cria novo.
     const indexExistente = entrevistas.findIndex(e => e.id === entrevistaAtual.id);
@@ -536,25 +539,25 @@ function executarSalvamento(btnSalvar, textoOriginal) {
     } else {
         entrevistas.push(entrevistaAtual);
     }
-    
+
     localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-    
+
     // Enviar backup para o Google Sheets
     enviarParaGoogleSheets(entrevistaAtual);
-    
+
     localStorage.removeItem('rascunhoEntrevista'); // Limpar rascunho
     // Limpar formulário
     limparFormulario();
-    
+
     // Mostrar confirmação
     mostrarMensagem('✅ Entrevista salva com sucesso!', 'success');
-    
+
     // Atualizar histórico
     carregarHistoricoEntrevistas();
-    
+
     // Ir para aba de histórico
     document.querySelector('[data-tab="historico"]').click();
-    
+
     // Restaurar botão (caso o usuário volte para a aba)
     if (btnSalvar) {
         btnSalvar.disabled = false;
@@ -564,7 +567,7 @@ function executarSalvamento(btnSalvar, textoOriginal) {
 
 function limparFormulario() {
     document.getElementById('formEntrevista').reset();
-    
+
     pararCronometro(); // Resetar cronômetro
     document.getElementById('cronometro').classList.add('hidden');
 
@@ -574,20 +577,20 @@ function limparFormulario() {
     if (btnToggle) btnToggle.remove();
 
     document.getElementById('cargoInfo').classList.add('hidden');
-    document.getElementById('perguntasContainer').innerHTML = 
+    document.getElementById('perguntasContainer').innerHTML =
         '<div class="no-data">Selecione um cargo para visualizar as perguntas da entrevista</div>';
     document.getElementById('avaliacaoContainer').innerHTML = '';
     document.getElementById('pontosFortes').value = '';
     document.getElementById('pontosMelhorar').value = '';
     document.getElementById('observacoes').value = '';
-    
+
     // Resetar data para hoje
     const hoje = new Date().toISOString().split('T')[0];
     document.getElementById('dataEntrevista').value = hoje;
     document.getElementById('horaEntrevista').value = '';
     document.getElementById('vagaInhire').value = '';
-    if(document.getElementById('linkReuniao')) document.getElementById('linkReuniao').value = '';
-    
+    if (document.getElementById('linkReuniao')) document.getElementById('linkReuniao').value = '';
+
     cargoSelecionado = null;
     entrevistaAtual = null;
 }
@@ -595,7 +598,7 @@ function limparFormulario() {
 function alterarCargo() {
     document.getElementById('cargo').value = '';
     document.getElementById('cargoInfo').classList.add('hidden');
-    document.getElementById('perguntasContainer').innerHTML = 
+    document.getElementById('perguntasContainer').innerHTML =
         '<div class="no-data">Selecione um cargo para visualizar as perguntas da entrevista</div>';
     document.getElementById('avaliacaoContainer').innerHTML = '';
     cargoSelecionado = null;
@@ -617,13 +620,13 @@ function agendarGoogleCalendar() {
     }
 
     const cargo = cargosAtivos.find(c => c.id === cargoId);
-    
+
     // Calcular datas
     const dataInicio = new Date(`${data}T${hora}`);
     // Extrair duração (ex: "30-45 minutos" -> pega 45, ou default 60)
     const duracaoMatch = cargo.duracao.match(/(\d+)/g);
     const minutosDuracao = duracaoMatch ? parseInt(duracaoMatch[duracaoMatch.length - 1]) : 60;
-    
+
     const dataFim = new Date(dataInicio.getTime() + minutosDuracao * 60000);
 
     // Formatar para YYYYMMDDTHHMMSS (Google Calendar Link format)
@@ -637,7 +640,7 @@ function agendarGoogleCalendar() {
     const location = encodeURIComponent(local === 'online' ? 'Google Meet / Online' : 'Presencial');
 
     const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${titulo}&dates=${dates}&details=${detalhes}&location=${location}`;
-    
+
     window.open(url, '_blank');
 
     // Pedir o link gerado
@@ -680,10 +683,10 @@ function salvarAgendamento() {
 
     entrevistas.push(agendamento);
     localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-    
+
     // Enviar backup para o Google Sheets
     enviarParaGoogleSheets(agendamento);
-    
+
     mostrarMensagem('📅 Agendamento salvo com sucesso!', 'success');
     limparFormulario();
     document.querySelector('[data-tab="agenda"]').click();
@@ -742,12 +745,12 @@ function restaurarRascunho(rascunho) {
     document.getElementById('dataEntrevista').value = rascunho.dadosBasicos.dataEntrevista;
     document.getElementById('horaEntrevista').value = rascunho.dadosBasicos.horaEntrevista || '';
     document.getElementById('vagaInhire').value = rascunho.dadosBasicos.vagaInhire || '';
-    if(document.getElementById('linkReuniao') && rascunho.dadosBasicos.linkReuniao) document.getElementById('linkReuniao').value = rascunho.dadosBasicos.linkReuniao;
+    if (document.getElementById('linkReuniao') && rascunho.dadosBasicos.linkReuniao) document.getElementById('linkReuniao').value = rascunho.dadosBasicos.linkReuniao;
     document.getElementById('cargo').value = rascunho.dadosBasicos.cargo;
-    
+
     // Disparar evento de mudança de cargo para carregar estrutura
     selecionarCargo(rascunho.dadosBasicos.cargo);
-    
+
     // Preencher o resto após carregar estrutura
     setTimeout(() => {
         // Restaurar respostas
@@ -755,7 +758,7 @@ function restaurarRascunho(rascunho) {
             const el = document.querySelector(`.resposta-pergunta[data-index="${idx}"]`);
             if (el) el.value = val;
         });
-        
+
         // Restaurar avaliações
         Object.entries(rascunho.avaliacoes).forEach(([comp, nota]) => {
             const item = document.querySelector(`.avaliacao-item[data-competencia="${comp}"]`);
@@ -764,11 +767,11 @@ function restaurarRascunho(rascunho) {
                 if (btn) selecionarNota(btn, comp);
             }
         });
-        
+
         document.getElementById('pontosFortes').value = rascunho.extras.pontosFortes;
         document.getElementById('pontosMelhorar').value = rascunho.extras.pontosMelhorar;
         document.getElementById('observacoes').value = rascunho.extras.observacoes;
-        
+
         iniciarEntrevista(); // Recriar objeto entrevistaAtual
         mostrarMensagem('📝 Rascunho restaurado com sucesso!', 'success');
     }, 200);
@@ -776,11 +779,11 @@ function restaurarRascunho(rascunho) {
 // --- Agenda ---
 function mudarVisualizacaoAgenda(tipo) {
     agendaVisualizacao = tipo;
-    
+
     // Atualizar botões
     const btnTriagem = document.getElementById('btnAgendaTriagem');
     const btnGerencia = document.getElementById('btnAgendaGerencia');
-    
+
     if (tipo === 'triagem') {
         btnTriagem.classList.add('active', 'btn-primary');
         btnTriagem.classList.remove('btn-secondary');
@@ -792,31 +795,31 @@ function mudarVisualizacaoAgenda(tipo) {
         btnTriagem.classList.remove('active', 'btn-primary');
         btnTriagem.classList.add('btn-secondary');
     }
-    
+
     carregarAgenda();
 }
 
 function carregarAgenda() {
     const container = document.getElementById('agendaContainer');
-    
+
     // Filtrar com base na visualização atual
     let listaFiltrada = [];
-    
+
     if (agendaVisualizacao === 'triagem') {
         listaFiltrada = entrevistas.filter(e => e.status === 'agendado');
     } else {
         listaFiltrada = entrevistas.filter(e => e.status === 'agendado_gerencia');
     }
-    
+
     // Ordenar por data
     const listaOrdenada = listaFiltrada.sort((a, b) => {
         // Para gerência, usa a data da gerência se existir
         const dataStrA = agendaVisualizacao === 'gerencia' && a.dadosGerencia ? a.dadosGerencia.data : a.dataEntrevista;
         const horaStrA = agendaVisualizacao === 'gerencia' && a.dadosGerencia ? a.dadosGerencia.hora : a.horaEntrevista;
-        
+
         const dataStrB = agendaVisualizacao === 'gerencia' && b.dadosGerencia ? b.dadosGerencia.data : b.dataEntrevista;
         const horaStrB = agendaVisualizacao === 'gerencia' && b.dadosGerencia ? b.dadosGerencia.hora : b.horaEntrevista;
-        
+
         const dataA = new Date(`${a.dataEntrevista}T${a.horaEntrevista || '00:00'}`);
         const dataB = new Date(`${b.dataEntrevista}T${b.horaEntrevista || '00:00'}`);
         return dataA - dataB;
@@ -838,32 +841,32 @@ function carregarAgenda() {
     let html = '';
     Object.keys(grupos).sort().forEach(data => {
         const itens = grupos[data];
-        
+
         html += `
             <div class="agenda-dia">
                 <div class="agenda-data-titulo">${formatarData(data)}</div>
                 ${itens.map((item) => {
-                    const realIndex = entrevistas.indexOf(item);
-                    const hora = agendaVisualizacao === 'gerencia' && item.dadosGerencia ? item.dadosGerencia.hora : (item.horaEntrevista || '??:??');
-                    const extraInfo = agendaVisualizacao === 'gerencia' && item.dadosGerencia ? `<br><small>👔 Gerente: ${item.dadosGerencia.gerente}</small>` : '';
-                    
-                    // Botões diferentes para cada agenda
-                    let botoes = '';
-                    if (agendaVisualizacao === 'triagem') {
-                        botoes = `
+            const realIndex = entrevistas.indexOf(item);
+            const hora = agendaVisualizacao === 'gerencia' && item.dadosGerencia ? item.dadosGerencia.hora : (item.horaEntrevista || '??:??');
+            const extraInfo = agendaVisualizacao === 'gerencia' && item.dadosGerencia ? `<br><small>👔 Gerente: ${item.dadosGerencia.gerente}</small>` : '';
+
+            // Botões diferentes para cada agenda
+            let botoes = '';
+            if (agendaVisualizacao === 'triagem') {
+                botoes = `
                             <button class="btn btn-small btn-secondary" onclick="mostrarEdicaoAgendamento(${realIndex})">✏️ Editar</button>
                             <button class="btn btn-small" onclick="editarEntrevista(${realIndex})">▶️ Iniciar</button>
                             <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${realIndex})">🗑️ Excluir</button>
                         `;
-                    } else {
-                        botoes = `
+            } else {
+                botoes = `
                             <button class="btn btn-small btn-secondary" onclick="mostrarEdicaoGerencia(${realIndex})" style="background: #fff7ed; color: #c2410c; border-color: #fdba74;">✏️ Editar</button>
                             <button class="btn btn-small btn-success" onclick="abrirModalResultadoGerencia(${realIndex})">✅ Resultado</button>
                             <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${realIndex})">🗑️ Cancelar</button>
                         `;
-                    }
+            }
 
-                    return `
+            return `
                     <div class="agenda-item">
                         <div>
                             <span class="agenda-hora">${hora}</span> 
@@ -885,8 +888,8 @@ function carregarAgenda() {
 function mostrarEdicaoAgendamento(index) {
     const entrevista = entrevistas[index];
     const container = document.getElementById('agendaContainer');
-    
-    const cargoOptions = cargosAtivos.map(c => 
+
+    const cargoOptions = cargosAtivos.map(c =>
         `<option value="${c.id}" ${c.id === entrevista.cargo ? 'selected' : ''}>${c.nome}</option>`
     ).join('');
 
@@ -968,10 +971,10 @@ function salvarEdicaoAgendamento(index) {
     entrevista.vagaInhire = document.getElementById('editVagaInhire').value;
 
     localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-    
+
     // Enviar atualização para o Google Sheets
     enviarParaGoogleSheets(entrevista);
-    
+
     mostrarMensagem('✅ Agendamento atualizado!', 'success');
     carregarAgenda();
     carregarPainelDia(); // Atualizar painel se modificado
@@ -993,11 +996,11 @@ function verificarCompatibilidadeDados() {
         }
         // 3. Garantir que datas tenham o formato correto (YYYY-MM-DD)
         if (e.dataEntrevista && e.dataEntrevista.includes('/')) {
-             const partes = e.dataEntrevista.split('/');
-             if (partes.length === 3) {
-                 e.dataEntrevista = `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
-                 alterado = true;
-             }
+            const partes = e.dataEntrevista.split('/');
+            if (partes.length === 3) {
+                e.dataEntrevista = `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+                alterado = true;
+            }
         }
     });
     if (alterado) {
@@ -1009,11 +1012,11 @@ function carregarPainelDia(dataFiltro = null) {
     const container = document.getElementById('painelDiaContainer');
     const resumo = document.getElementById('painelResumoDia');
     const titulo = document.getElementById('dataPainelTitulo');
-    
+
     if (!container || !resumo) return;
 
     const dataAlvo = dataFiltro || new Date().toISOString().split('T')[0];
-    
+
     // Atualizar títulos e campos
     if (titulo) titulo.textContent = formatarData(dataAlvo);
     if (!dataFiltro && document.getElementById('dataFiltroPainel')) {
@@ -1025,7 +1028,7 @@ function carregarPainelDia(dataFiltro = null) {
         // Para gerência, a data pode estar em dadosGerencia ou ser a dataEntrevista (agendamento)
         const dataGerencia = e.dadosGerencia ? e.dadosGerencia.data : null;
         const statusValido = ['agendado', 'agendado_gerencia', 'analise'].includes(e.status);
-        
+
         if (e.status === 'agendado_gerencia') {
             return dataGerencia === dataAlvo;
         }
@@ -1070,7 +1073,7 @@ function carregarPainelDia(dataFiltro = null) {
         const hora = item.status === 'agendado_gerencia' ? item.dadosGerencia.hora : (item.horaEntrevista || '??:??');
         const tipo = item.status === 'agendado_gerencia' ? '👔 GERÊNCIA' : '📋 TRIAGEM';
         const corTipo = item.status === 'agendado_gerencia' ? '#c2410c' : '#1967d2';
-        
+
         html += `
             <div class="agenda-item" style="border-left: 5px solid ${corTipo};">
                 <div>
@@ -1082,12 +1085,12 @@ function carregarPainelDia(dataFiltro = null) {
                     </div>
                 </div>
                 <div style="display: flex; gap: 5px;">
-                    ${item.status === 'agendado_gerencia' ? 
-                        `<button class="btn btn-small btn-primary" onclick="mostrarEdicaoGerencia(${realIndex})">✏️ Editar</button>
+                    ${item.status === 'agendado_gerencia' ?
+                `<button class="btn btn-small btn-primary" onclick="mostrarEdicaoGerencia(${realIndex})">✏️ Editar</button>
                          <button class="btn btn-small btn-success" onclick="abrirModalResultadoGerencia(${realIndex})">✅ Resultado</button>` :
-                        `<button class="btn btn-small btn-secondary" onclick="mostrarEdicaoAgendamento(${realIndex})">✏️ Editar</button>
+                `<button class="btn btn-small btn-secondary" onclick="mostrarEdicaoAgendamento(${realIndex})">✏️ Editar</button>
                          <button class="btn btn-small" onclick="editarEntrevista(${realIndex})">▶️ Iniciar</button>`
-                    }
+            }
                 </div>
             </div>
         `;
@@ -1098,10 +1101,10 @@ function carregarPainelDia(dataFiltro = null) {
 
 function mostrarEdicaoGerencia(index) {
     const entrevista = entrevistas[index];
-    const container = (document.getElementById('tab-painel-dia').classList.contains('active')) ? 
-                      document.getElementById('painelDiaContainer') : 
-                      document.getElementById('agendaContainer');
-    
+    const container = (document.getElementById('tab-painel-dia').classList.contains('active')) ?
+        document.getElementById('painelDiaContainer') :
+        document.getElementById('agendaContainer');
+
     if (!entrevista.dadosGerencia) {
         entrevista.dadosGerencia = { data: entrevista.dataEntrevista, hora: '', gerente: '', observacoes: '' };
     }
@@ -1147,7 +1150,7 @@ function mostrarEdicaoGerencia(index) {
 
 function salvarEdicaoGerencia(index) {
     const entrevista = entrevistas[index];
-    
+
     entrevista.dadosGerencia = {
         data: document.getElementById('editDataG').value,
         hora: document.getElementById('editHoraG').value,
@@ -1157,7 +1160,7 @@ function salvarEdicaoGerencia(index) {
 
     localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
     enviarParaGoogleSheets(entrevista);
-    
+
     mostrarMensagem('✅ Dados da gerência atualizados!', 'success');
     carregarAgenda();
     carregarPainelDia();
@@ -1170,19 +1173,19 @@ function carregarHistoricoEntrevistas(filtro = '') {
     const filtroCargo = document.getElementById('filtroCargoHistorico').value;
     const dataInicio = document.getElementById('filtroDataInicio').value;
     const dataFim = document.getElementById('filtroDataFim').value;
-    
+
     let entrevistasFiltradas = entrevistas;
-    
+
     // Aplicar filtro de texto
     if (filtro) {
         const termo = filtro.toLowerCase();
-        entrevistasFiltradas = entrevistasFiltradas.filter(e => 
+        entrevistasFiltradas = entrevistasFiltradas.filter(e =>
             e.candidatoNome.toLowerCase().includes(termo) ||
             e.cargoNome.toLowerCase().includes(termo) ||
             e.entrevistador.toLowerCase().includes(termo)
         );
     }
-    
+
     // Aplicar filtro de status
     if (filtroStatus) {
         entrevistasFiltradas = entrevistasFiltradas.filter(e => e.status === filtroStatus);
@@ -1200,14 +1203,14 @@ function carregarHistoricoEntrevistas(filtro = '') {
     if (dataFim) {
         entrevistasFiltradas = entrevistasFiltradas.filter(e => e.dataEntrevista <= dataFim);
     }
-    
+
     // Ordenar por data (mais recente primeiro)
     entrevistasFiltradas.sort((a, b) => {
         const dateA = a.dataRegistro ? new Date(a.dataRegistro) : (a.dataEntrevista ? new Date(a.dataEntrevista) : new Date(0));
         const dateB = b.dataRegistro ? new Date(b.dataRegistro) : (b.dataEntrevista ? new Date(b.dataEntrevista) : new Date(0));
         return dateB - dateA;
     });
-    
+
     // Separar em Agendadas e Realizadas
     const agendadas = entrevistasFiltradas.filter(e => e.status === 'agendado');
     const realizadas = entrevistasFiltradas.filter(e => e.status !== 'agendado');
@@ -1227,7 +1230,7 @@ function carregarHistoricoEntrevistas(filtro = '') {
             'contratado': '🎉 Contratado',
             'reprovado_gerencia': '❌ Reprovado Gerência'
         }[entrevista.status] || entrevista.status;
-        
+
         // Lógica de botões de ação
         let botoesAcao = '';
         // Botão de Feedback (para reprovados, contratados ou faltou)
@@ -1344,7 +1347,7 @@ function verDetalhesEntrevista(index) {
         <h4>📝 Respostas da Entrevista</h4>
         <div class="respostas-lista">
     `;
-    
+
     entrevista.respostas.forEach((resposta, i) => {
         html += `
             <div class="resposta-item">
@@ -1353,14 +1356,14 @@ function verDetalhesEntrevista(index) {
             </div>
         `;
     });
-    
+
     html += `
         </div>
         
         <h4>📊 Avaliação</h4>
         <div class="avaliacoes-lista">
     `;
-    
+
     Object.entries(entrevista.avaliacoes || {}).forEach(([competencia, nota]) => {
         const valorNota = typeof nota === 'object' ? nota.nota : nota;
         const motivo = typeof nota === 'object' ? `<br><small><em>Motivo: ${nota.motivo}</em></small>` : '';
@@ -1372,19 +1375,19 @@ function verDetalhesEntrevista(index) {
             </div>
         `;
     });
-    
+
     if (entrevista.pontosFortes) {
         html += `<h4>✨ Pontos Fortes</h4><p>${entrevista.pontosFortes}</p>`;
     }
-    
+
     if (entrevista.pontosMelhorar) {
         html += `<h4>📈 Pontos a Melhorar</h4><p>${entrevista.pontosMelhorar}</p>`;
     }
-    
+
     if (entrevista.observacoes) {
         html += `<h4>📝 Observações</h4><p>${entrevista.observacoes}</p>`;
     }
-    
+
     document.getElementById('modalDetalhesConteudo').innerHTML = html;
     document.getElementById('modalDetalhes').style.display = 'flex';
 }
@@ -1392,10 +1395,10 @@ function verDetalhesEntrevista(index) {
 function gerarRelatorioEntrevista(index) {
     // Ir para aba de relatório
     document.querySelector('[data-tab="relatorio"]').click();
-    
+
     // Selecionar a entrevista no select
     document.getElementById('selecionarEntrevistaRelatorio').value = index;
-    
+
     // Carregar preview
     setTimeout(() => {
         carregarPreviewRelatorio(index);
@@ -1404,10 +1407,10 @@ function gerarRelatorioEntrevista(index) {
 
 function editarEntrevista(index) {
     const entrevista = entrevistas[index];
-    
+
     // 1. MUDANÇA: Navegar imediatamente para a aba de entrevista para feedback visual instantâneo
     document.querySelector('[data-tab="entrevista"]').click();
-    
+
     // Restaurar visibilidade do formulário para edição
     document.getElementById('formEntrevista').classList.remove('hidden');
     const btnToggle = document.getElementById('btnToggleForm');
@@ -1429,12 +1432,12 @@ function editarEntrevista(index) {
     document.getElementById('entrevistador').value = entrevista.entrevistador;
     document.getElementById('horaEntrevista').value = entrevista.horaEntrevista || '';
     document.getElementById('vagaInhire').value = entrevista.vagaInhire || '';
-    if(document.getElementById('linkReuniao')) document.getElementById('linkReuniao').value = entrevista.linkReuniao || '';
-    
+    if (document.getElementById('linkReuniao')) document.getElementById('linkReuniao').value = entrevista.linkReuniao || '';
+
     // Selecionar o cargo
     setTimeout(() => {
         selecionarCargo(entrevista.cargo);
-        
+
         // Preencher respostas
         setTimeout(() => {
             entrevista.respostas.forEach((resposta, i) => {
@@ -1443,7 +1446,7 @@ function editarEntrevista(index) {
                     textarea.value = resposta.resposta;
                 }
             });
-            
+
             // Preencher avaliações
             Object.entries(entrevista.avaliacoes || {}).forEach(([competencia, nota]) => {
                 const item = document.querySelector(`.avaliacao-item[data-competencia="${competencia}"]`);
@@ -1454,22 +1457,28 @@ function editarEntrevista(index) {
                     }
                 }
             });
-            
+
             // Preencher campos adicionais
             document.getElementById('pontosFortes').value = entrevista.pontosFortes || '';
             document.getElementById('pontosMelhorar').value = entrevista.pontosMelhorar || '';
             document.getElementById('observacoes').value = entrevista.observacoes || '';
-            
-            // Preencher status
-            document.querySelector(`input[name="status"][value="${entrevista.status}"]`).checked = true;
-            
+
+            // Preencher status (com segurança caso não exista o radio button)
+            const radioStatus = document.querySelector(`input[name="status"][value="${entrevista.status}"]`);
+            if (radioStatus) {
+                radioStatus.checked = true;
+            } else if (entrevista.status === 'aprovado_triagem') {
+                // Fallback para status novo no formulário antigo
+                document.querySelector('input[name="status"][value="aprovado"]').checked = true;
+            }
+
             // Remover entrevista do array (será readicionada ao salvar)
             entrevistas.splice(index, 1);
             localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-            
+
             // Atualizar histórico
             carregarHistoricoEntrevistas();
-            
+
             mostrarMensagem('📝 Entrevista carregada para edição. Faça as alterações e salve novamente.', 'info');
         }, 300); // Tempo reduzido para ser mais ágil
     }, 50);
@@ -1560,7 +1569,7 @@ function abrirModalCargo(cargoId = null) {
         document.getElementById('editCargoHorario').value = '';
         document.getElementById('editCargoBeneficios').value = '';
         document.getElementById('editCargoObservacoes').value = '';
-        
+
         // Adicionar uma pergunta padrão
         adicionarPerguntaEditor('Geral', '');
     }
@@ -1584,7 +1593,7 @@ function adicionarPerguntaEditor(categoria = '', texto = '') {
         </div>
         <button class="btn btn-small btn-danger" onclick="this.parentElement.remove()" style="height:fit-content;">🗑️</button>
     `;
-    
+
     // Eventos de Drag and Drop
     div.addEventListener('dragstart', () => {
         div.classList.add('dragging');
@@ -1599,7 +1608,7 @@ function adicionarPerguntaEditor(categoria = '', texto = '') {
 function salvarCargoEditado() {
     const id = document.getElementById('editCargoId').value;
     const nome = document.getElementById('editCargoNome').value;
-    
+
     if (!nome) {
         alert('O nome do cargo é obrigatório.');
         return;
@@ -1657,7 +1666,7 @@ function excluirCargo(id) {
 function atualizarSelectRelatorio() {
     const select = document.getElementById('selecionarEntrevistaRelatorio');
     select.innerHTML = '<option value="">Escolha uma entrevista...</option>';
-    
+
     entrevistas.forEach((entrevista, index) => {
         const option = document.createElement('option');
         option.value = index;
@@ -1669,9 +1678,9 @@ function atualizarSelectRelatorio() {
 function carregarPreviewRelatorio(index) {
     const entrevista = entrevistas[index];
     if (!entrevista) return;
-    
+
     const container = document.getElementById('relatorioPreview');
-    
+
     let html = `
         <div class="preview-header">
             <h1 class="preview-title">Relatório de Entrevista</h1>
@@ -1706,7 +1715,7 @@ function carregarPreviewRelatorio(index) {
         <div class="preview-section">
             <h3 class="preview-section-title">🗣️ Perguntas e Respostas</h3>
     `;
-    
+
     entrevista.respostas.forEach((resposta, i) => {
         html += `
             <div class="pergunta-preview">
@@ -1715,9 +1724,9 @@ function carregarPreviewRelatorio(index) {
             </div>
         `;
     });
-    
+
     html += `</div>`;
-    
+
     // Avaliação
     if (Object.keys(entrevista.avaliacoes || {}).length > 0) {
         html += `
@@ -1725,7 +1734,7 @@ function carregarPreviewRelatorio(index) {
                 <h3 class="preview-section-title">📊 Avaliação por Competência</h3>
                 <div class="avaliacoes-grid">
         `;
-        
+
         Object.entries(entrevista.avaliacoes).forEach(([competencia, nota]) => {
             const valorNota = typeof nota === 'object' ? nota.nota : nota;
             const motivo = typeof nota === 'object' ? `<div style="font-size:0.8em; color:#666; margin-top:4px;">Motivo: ${nota.motivo}</div>` : '';
@@ -1736,7 +1745,7 @@ function carregarPreviewRelatorio(index) {
                 </div>
             `;
         });
-        
+
         html += `
                 </div>
                 <div class="media-geral">
@@ -1745,7 +1754,7 @@ function carregarPreviewRelatorio(index) {
             </div>
         `;
     }
-    
+
     // Pontos fortes e melhorar
     if (entrevista.pontosFortes) {
         html += `
@@ -1755,7 +1764,7 @@ function carregarPreviewRelatorio(index) {
             </div>
         `;
     }
-    
+
     if (entrevista.pontosMelhorar) {
         html += `
             <div class="preview-section">
@@ -1764,7 +1773,7 @@ function carregarPreviewRelatorio(index) {
             </div>
         `;
     }
-    
+
     if (entrevista.observacoes) {
         html += `
             <div class="preview-section">
@@ -1773,7 +1782,7 @@ function carregarPreviewRelatorio(index) {
             </div>
         `;
     }
-    
+
     // Avaliação final
     const statusText = {
         'aprovado': '✅ APROVADO (TRIAGEM)',
@@ -1786,7 +1795,7 @@ function carregarPreviewRelatorio(index) {
         'contratado': '🎉 CANDIDATO CONTRATADO',
         'reprovado_gerencia': '❌ REPROVADO PELA GERÊNCIA'
     }[entrevista.status] || entrevista.status;
-    
+
     html += `
         <div class="preview-section">
             <h3 class="preview-section-title">📋 Avaliação Final</h3>
@@ -1799,14 +1808,14 @@ function carregarPreviewRelatorio(index) {
             <p><em>Relatório gerado automaticamente pelo Sistema de Entrevistas</em></p>
         </div>
     `;
-    
+
     container.classList.remove('hidden');
-    
+
     // Habilitar botões
     document.getElementById('acoesRelatorio').querySelectorAll('button').forEach(btn => {
         btn.disabled = false;
     });
-    
+
     // Salvar índice para uso no PDF
     container.dataset.index = index;
 }
@@ -1814,46 +1823,46 @@ function carregarPreviewRelatorio(index) {
 function gerarPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
-    
+
     const entrevistaIndex = document.getElementById('relatorioPreview').dataset.index;
     const entrevista = entrevistas[entrevistaIndex];
-    
+
     if (!entrevista) {
         mostrarMensagem('❌ Erro ao gerar PDF: entrevista não encontrada.', 'error');
         return;
     }
-    
+
     // Configurações do PDF
     const margin = 20;
     let y = margin;
     const pageWidth = doc.internal.pageSize.getWidth();
     const contentWidth = pageWidth - (2 * margin);
-    
+
     // Cabeçalho
     doc.setFillColor(138, 43, 226);
     doc.rect(0, 0, pageWidth, 35, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22);
     doc.text('RELATÓRIO DE ENTREVISTA', pageWidth / 2, 20, { align: 'center' });
-    
+
     doc.setFontSize(14);
     doc.text(entrevista.candidatoNome + ' - ' + entrevista.cargoNome, pageWidth / 2, 30, { align: 'center' });
-    
+
     y = 45;
-    
+
     // Resetar cor
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
-    
+
     // Informações gerais
     doc.setFontSize(12);
     doc.setTextColor(138, 43, 226);
     doc.text('INFORMAÇÕES GERAIS', margin, y);
     y += 8;
-    
+
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    
+
     const infos = [
         `Candidato: ${entrevista.candidatoNome}`,
         `Cargo: ${entrevista.cargoNome}`,
@@ -1862,106 +1871,106 @@ function gerarPDF() {
         `Status: ${entrevista.status.toUpperCase()}`,
         `Data do relatório: ${formatarData(new Date().toISOString())}`
     ];
-    
+
     infos.forEach(info => {
         doc.text(info, margin, y);
         y += 6;
     });
-    
+
     y += 10;
-    
+
     // Perguntas e respostas
     doc.setFontSize(12);
     doc.setTextColor(138, 43, 226);
     doc.text('PERGUNTAS E RESPOSTAS', margin, y);
     y += 8;
-    
+
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    
+
     entrevista.respostas.forEach((resposta, i) => {
         // Quebrar pergunta em linhas se necessário
         const perguntaLines = doc.splitTextToSize(`${i + 1}. ${resposta.pergunta}`, contentWidth);
-        
+
         // Verificar espaço na página
         if (y + (perguntaLines.length * 5) + 20 > 280) {
             doc.addPage();
             y = margin;
         }
-        
+
         // Pergunta em negrito
         doc.setFont('helvetica', 'bold');
         doc.text(perguntaLines, margin, y);
         y += (perguntaLines.length * 5) + 2;
-        
+
         // Resposta
         doc.setFont('helvetica', 'normal');
         const respostaText = resposta.resposta || 'Não respondido';
         const respostaLines = doc.splitTextToSize(respostaText, contentWidth - 10);
-        
+
         // Background para resposta
         doc.setFillColor(248, 245, 255);
         const respostaHeight = respostaLines.length * 5 + 4;
         doc.rect(margin + 5, y - 2, contentWidth - 10, respostaHeight, 'F');
-        
+
         // Borda colorida
         doc.setFillColor(138, 43, 226);
         doc.rect(margin + 5, y - 2, 3, respostaHeight, 'F');
-        
+
         doc.text(respostaLines, margin + 10, y);
         y += respostaHeight + 10;
     });
-    
+
     // Avaliação
     if (Object.keys(entrevista.avaliacoes || {}).length > 0) {
         y += 5;
-        
+
         doc.setFontSize(12);
         doc.setTextColor(138, 43, 226);
         doc.text('AVALIAÇÃO', margin, y);
         y += 8;
-        
+
         doc.setFontSize(10);
         doc.setTextColor(0, 0, 0);
-        
+
         Object.entries(entrevista.avaliacoes).forEach(([competencia, nota]) => {
             const valorNota = typeof nota === 'object' ? nota.nota : nota;
             doc.text(`${competencia}: ${valorNota}/5`, margin, y);
             y += 6;
         });
-        
+
         doc.text(`Média Geral: ${entrevista.mediaAvaliacao || '0'}/5`, margin, y);
         y += 10;
     }
-    
+
     // Pontos fortes
     if (entrevista.pontosFortes) {
         doc.setFontSize(12);
         doc.setTextColor(138, 43, 226);
         doc.text('PONTOS FORTES', margin, y);
         y += 8;
-        
+
         doc.setFontSize(10);
         doc.setTextColor(0, 0, 0);
-        
+
         const pontosLines = doc.splitTextToSize(entrevista.pontosFortes, contentWidth);
         doc.text(pontosLines, margin, y);
         y += (pontosLines.length * 5) + 10;
     }
-    
+
     // Avaliação final
     y += 5;
     doc.setFontSize(14);
     doc.setTextColor(138, 43, 226);
     doc.text('AVALIAÇÃO FINAL', pageWidth / 2, y, { align: 'center' });
     y += 10;
-    
+
     const statusText = {
         'aprovado': '✅ CANDIDATO APROVADO',
         'reprovado': '❌ CANDIDATO REPROVADO',
         'analise': '⏳ EM ANÁLISE'
     }[entrevista.status] || entrevista.status;
-    
+
     doc.setFontSize(16);
     if (entrevista.status.includes('aprovado') || entrevista.status === 'contratado') {
         doc.setTextColor(0, 176, 155);
@@ -1970,14 +1979,14 @@ function gerarPDF() {
     } else {
         doc.setTextColor(138, 43, 226);
     }
-    
+
     doc.text(statusText, pageWidth / 2, y, { align: 'center' });
-    
+
     // Rodapé
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
     doc.text('Sistema de Entrevistas - Relatório gerado automaticamente', pageWidth / 2, 290, { align: 'center' });
-    
+
     // Salvar PDF
     const fileName = `Entrevista_${entrevista.candidatoNome.replace(/\s+/g, '_')}_${formatarData(entrevista.dataEntrevista).replace(/\//g, '-')}.pdf`;
     doc.save(fileName);
@@ -1988,7 +1997,7 @@ async function gerarRelatorioListaPDF(tipo) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
     const periodo = document.getElementById('periodoRelatorio').value;
-    
+
     let titulo = '';
     if (tipo === 'agendadas') titulo = 'RELATÓRIO DE ENTREVISTAS AGENDADAS (TRIAGEM)';
     else if (tipo === 'agendadas_gerencia') titulo = 'RELATÓRIO DE ENTREVISTAS AGENDADAS (GERÊNCIA)';
@@ -2003,7 +2012,7 @@ async function gerarRelatorioListaPDF(tipo) {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
     doc.text(titulo, 105, 15, { align: 'center' });
-    
+
     let y = 35;
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
@@ -2013,19 +2022,19 @@ async function gerarRelatorioListaPDF(tipo) {
     if (periodo === '7dias') dataLimite.setDate(dataLimite.getDate() - 7);
     if (periodo === '30dias') dataLimite.setDate(dataLimite.getDate() - 30);
     if (periodo !== 'todos') dataLimite.setHours(0, 0, 0, 0);
-    
+
     const lista = entrevistas.filter(e => {
         // Filtro de Tipo
         let statusMatch = false;
         if (tipo === 'agendadas') statusMatch = (e.status === 'agendado');
         else if (tipo === 'agendadas_gerencia') statusMatch = (e.status === 'agendado_gerencia');
         else statusMatch = (e.status !== 'agendado' && e.status !== 'agendado_gerencia');
-        
+
         if (!statusMatch) return false;
 
         // Filtro de Data
         if (periodo === 'todos') return true;
-        
+
         const dataStr = (tipo === 'agendadas_gerencia' && e.dadosGerencia) ? e.dadosGerencia.data : e.dataEntrevista;
         const dataItem = new Date(dataStr.includes('T') ? dataStr : dataStr + 'T00:00:00');
         return dataItem >= dataLimite;
@@ -2039,9 +2048,9 @@ async function gerarRelatorioListaPDF(tipo) {
     } else {
         lista.forEach((item, i) => {
             if (y > 270) { doc.addPage(); y = 20; }
-            
+
             const data = formatarData(item.dataEntrevista);
-            
+
             if (tipo === 'agendadas') {
                 doc.setFont('helvetica', 'bold');
                 doc.text(`${data} - ${item.horaEntrevista || '??:??'} | ${item.candidatoNome}`, 10, y);
@@ -2079,21 +2088,21 @@ async function gerarRelatorioListaPDF(tipo) {
                 }
                 y += 15;
             }
-            
+
             // Separator
             doc.setDrawColor(200);
-            doc.line(10, y-2, 200, y-2);
+            doc.line(10, y - 2, 200, y - 2);
             y += 5;
         });
     }
-    
+
     doc.save(`Relatorio_${tipo}_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
 function imprimirRelatorio() {
     const preview = document.getElementById('relatorioPreview');
     const printWindow = window.open('', '_blank');
-    
+
     printWindow.document.write(`
         <html>
             <head>
@@ -2195,7 +2204,7 @@ function imprimirRelatorio() {
             </body>
         </html>
     `);
-    
+
     printWindow.document.close();
 }
 
@@ -2205,9 +2214,9 @@ function atualizarEstatisticas() {
     const total = entrevistas.length;
     const agendados = entrevistas.filter(e => e.status === 'agendado').length;
     const realizados = total - agendados;
-    
+
     document.getElementById('totalEntrevistas').textContent = total;
-    
+
     // Tentar mostrar agendados se o elemento existir, ou injetar visualmente (opcional)
     const elAgendados = document.getElementById('totalAgendados');
     if (elAgendados) {
@@ -2227,25 +2236,25 @@ function atualizarEstatisticas() {
         }
     }
 
-    const aprovados = entrevistas.filter(e => e.status === 'aprovado').length;
-    const reprovados = entrevistas.filter(e => e.status === 'reprovado').length;
+    const aprovados = entrevistas.filter(e => e.status === 'aprovado' || e.status === 'aprovado_triagem' || e.status === 'contratado').length;
+    const reprovados = entrevistas.filter(e => e.status === 'reprovado' || e.status === 'reprovado_gerencia').length;
     const faltou = entrevistas.filter(e => e.status === 'faltou').length;
-    
+
     document.getElementById('totalAprovados').textContent = aprovados;
     document.getElementById('totalReprovados').textContent = reprovados;
     document.getElementById('totalFaltou').textContent = faltou;
-    
+
     // Taxa baseada apenas no que foi REALIZADO (exclui agendados)
     const baseCalculo = realizados > 0 ? realizados : 0;
     const taxa = baseCalculo > 0 ? Math.round((aprovados / baseCalculo) * 100) : 0;
     document.getElementById('taxaAprovacao').textContent = `${taxa}%`;
-    
+
     // Gráfico de cargos
     atualizarGraficoCargos();
-    
+
     // Gráfico mensal
     atualizarGraficoMensal();
-    
+
     // Últimas entrevistas
     atualizarUltimasEntrevistas();
 }
@@ -2253,12 +2262,12 @@ function atualizarEstatisticas() {
 function atualizarGraficoCargos() {
     const container = document.getElementById('chartCargos');
     if (!container) return;
-    
+
     // Contar entrevistas por cargo
     // Separar dados
     const contagemRealizados = {};
     const contagemAgendados = {};
-    
+
     entrevistas.forEach(entrevista => {
         if (entrevista.status === 'agendado') {
             contagemAgendados[entrevista.cargoNome] = (contagemAgendados[entrevista.cargoNome] || 0) + 1;
@@ -2266,16 +2275,16 @@ function atualizarGraficoCargos() {
             contagemRealizados[entrevista.cargoNome] = (contagemRealizados[entrevista.cargoNome] || 0) + 1;
         }
     });
-    
+
     const gerarBarras = (dados, titulo, cor) => {
         const cargos = Object.keys(dados);
         const valores = Object.values(dados);
-        
+
         if (cargos.length === 0) return `<div style="padding:10px; color:#999; font-size:0.9em;">Sem dados de ${titulo.toLowerCase()}</div>`;
-        
+
         const maxValor = Math.max(...valores);
         let html = `<h4 style="margin:10px 0 5px 0; color:#666; font-size:0.9em; border-bottom:1px solid #eee;">${titulo}</h4><div style="display:flex; align-items:flex-end; height:100px; gap:10px; margin-bottom:15px;">`;
-        
+
         cargos.forEach((cargo, index) => {
             const altura = maxValor > 0 ? (valores[index] / maxValor) * 100 : 10;
             html += `
@@ -2288,34 +2297,34 @@ function atualizarGraficoCargos() {
         html += '</div>';
         return html;
     };
-    
+
     if (entrevistas.length === 0) {
         container.innerHTML = '<div class="no-data">Nenhuma entrevista para exibir</div>';
         return;
     }
-    
+
     let html = '';
     html += gerarBarras(contagemRealizados, '✅ Realizados', '#8a2be2'); // Roxo original
     html += gerarBarras(contagemAgendados, '📅 Agendados', '#aecbfa'); // Azul claro
-    
+
     container.innerHTML = html;
 }
 
 function atualizarGraficoMensal() {
     const container = document.getElementById('chartMensal');
     if (!container) return;
-    
+
     // Agrupar por mês (últimos 6 meses)
     // Preparar meses (últimos 6)
     const chavesMeses = [];
     const hoje = new Date();
-    
+
     for (let i = 5; i >= 0; i--) {
         const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
         const key = `${d.getMonth() + 1}/${d.getFullYear()}`;
         chavesMeses.push(`${d.getMonth() + 1}/${d.getFullYear()}`);
     }
-    
+
     const dadosRealizados = {};
     const dadosAgendados = {};
     chavesMeses.forEach(k => { dadosRealizados[k] = 0; dadosAgendados[k] = 0; });
@@ -2330,7 +2339,7 @@ function atualizarGraficoMensal() {
             const d = new Date(entrevista.dataEntrevista);
             key = `${d.getMonth() + 1}/${d.getFullYear()}`;
         }
-        
+
         if (dadosRealizados.hasOwnProperty(key)) {
             if (entrevista.status === 'agendado') {
                 dadosAgendados[key]++;
@@ -2339,12 +2348,12 @@ function atualizarGraficoMensal() {
             }
         }
     });
-    
+
     const gerarGraficoLinha = (dados, titulo, cor) => {
         const valores = Object.values(dados);
         const maxValor = Math.max(...valores, 1);
         let html = `<h4 style="margin:10px 0 5px 0; color:#666; font-size:0.9em; border-bottom:1px solid #eee;">${titulo}</h4><div style="display:flex; align-items:flex-end; height:100px; gap:10px; margin-bottom:15px;">`;
-        
+
         Object.keys(dados).forEach((label, index) => {
             const altura = (valores[index] / maxValor) * 100;
             // Correção: Adicionado flex:1 e min-width para garantir visualização das barras
@@ -2356,27 +2365,27 @@ function atualizarGraficoMensal() {
         html += '</div>';
         return html;
     };
-    
+
     let html = '';
     html += gerarGraficoLinha(dadosRealizados, '✅ Realizados', '#8a2be2');
     html += gerarGraficoLinha(dadosAgendados, '📅 Agendados', '#aecbfa');
-    
+
     container.innerHTML = html;
 }
 
 function atualizarUltimasEntrevistas() {
     const container = document.getElementById('listaUltimasEntrevistas');
     if (!container) return;
-    
+
     const ultimas = [...entrevistas]
         .sort((a, b) => new Date(b.dataRegistro) - new Date(a.dataRegistro))
         .slice(0, 5);
-    
+
     if (ultimas.length === 0) {
         container.innerHTML = '<div class="no-data">Nenhuma entrevista realizada</div>';
         return;
     }
-    
+
     let html = '<div class="lista-simples">';
     ultimas.forEach(entrevista => {
         const data = formatarData(entrevista.dataEntrevista);
@@ -2391,7 +2400,7 @@ function atualizarUltimasEntrevistas() {
         `;
     });
     html += '</div>';
-    
+
     container.innerHTML = html;
 }
 
@@ -2415,15 +2424,15 @@ function importarDados() {
         alert('Selecione um arquivo JSON primeiro.');
         return;
     }
-    
+
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         try {
             const dadosImportados = JSON.parse(e.target.result);
             if (Array.isArray(dadosImportados)) {
                 entrevistas = dadosImportados;
                 localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-                
+
                 // Limpar filtros para garantir que os dados apareçam
                 ['filtroStatus', 'filtroCargoHistorico', 'filtroDataInicio', 'filtroDataFim', 'buscarEntrevista'].forEach(id => {
                     const el = document.getElementById(id);
@@ -2431,14 +2440,14 @@ function importarDados() {
                 });
 
                 carregarDados();
-                
+
                 // Ir para a aba de histórico automaticamente
                 const tabHistorico = document.querySelector('[data-tab="historico"]');
                 if (tabHistorico) tabHistorico.click();
-                
+
                 // Enviar dados importados para o Google Sheets
                 mostrarMensagem(`📥 Restaurado! Enviando ${dadosImportados.length} registros para a planilha...`, 'info');
-                
+
                 dadosImportados.forEach((item, index) => {
                     setTimeout(() => {
                         enviarParaGoogleSheets(item);
@@ -2468,13 +2477,13 @@ function inicializarTema() {
 // Funções auxiliares
 function formatarData(dataString) {
     if (!dataString) return 'N/A';
-    
+
     // Se tiver horário (ISO), converte para data local
     if (dataString.includes('T')) {
         const data = new Date(dataString);
         return data.toLocaleDateString('pt-BR');
     }
-    
+
     // Se for apenas data (YYYY-MM-DD), faz split para evitar problemas de fuso horário
     const [ano, mes, dia] = dataString.split('-');
     return `${dia}/${mes}/${ano}`;
@@ -2482,7 +2491,7 @@ function formatarData(dataString) {
 
 function enviarParaGoogleSheets(dados) {
     if (!GOOGLE_SCRIPT_URL) return;
-    
+
     fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -2491,8 +2500,8 @@ function enviarParaGoogleSheets(dados) {
         },
         body: JSON.stringify(dados)
     })
-    .then(() => console.log('Dados enviados para o Google Sheets'))
-    .catch(erro => console.error('Erro ao enviar para Sheets:', erro));
+        .then(() => console.log('Dados enviados para o Google Sheets'))
+        .catch(erro => console.error('Erro ao enviar para Sheets:', erro));
 }
 
 function mostrarMensagem(texto, tipo = 'info') {
@@ -2505,7 +2514,7 @@ function mostrarMensagem(texto, tipo = 'info') {
             <button class="mensagem-fechar" onclick="this.parentElement.parentElement.remove()">&times;</button>
         </div>
     `;
-    
+
     // Estilos para a mensagem
     mensagem.style.cssText = `
         position: fixed;
@@ -2520,9 +2529,9 @@ function mostrarMensagem(texto, tipo = 'info') {
         animation: slideIn 0.3s ease;
         max-width: 400px;
     `;
-    
+
     document.body.appendChild(mensagem);
-    
+
     // Remover após 5 segundos
     setTimeout(() => {
         if (mensagem.parentElement) {
@@ -2532,9 +2541,59 @@ function mostrarMensagem(texto, tipo = 'info') {
     }, 5000);
 }
 
+async function sincronizarComPlanilha() {
+    if (!GOOGLE_SCRIPT_URL) {
+        alert('⚠️ Erro: URL do Google Script não configurada.');
+        return;
+    }
+
+    mostrarMensagem('🔄 Iniciando sincronização com a Planilha...', 'info');
+
+    try {
+        // Faz o fetch com timeout para não travar
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+        const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=read`, {
+            method: 'GET',
+            mode: 'cors' // Mudança para cors para conseguir ler o conteúdo se permitido
+        });
+
+        if (!response.ok) throw new Error('Falha na resposta do servidor');
+
+        const dadosPlanilha = await response.json();
+
+        if (Array.isArray(dadosPlanilha) && dadosPlanilha.length > 0) {
+            // Unificar dados (evitar duplicatas por ID)
+            const idsExistentes = new Set(entrevistas.map(e => e.id));
+            let novosRegistros = 0;
+
+            dadosPlanilha.forEach(item => {
+                if (!idsExistentes.has(item.id)) {
+                    entrevistas.push(item);
+                    novosRegistros++;
+                }
+            });
+
+            if (novosRegistros > 0) {
+                localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+                carregarDados(); // Recarregar estatísticas e histórico
+                mostrarMensagem(`✅ Sucesso! ${novosRegistros} novos registros recuperados da planilha.`, 'success');
+            } else {
+                mostrarMensagem('ℹ️ A planilha não possui registros novos além dos que já estão aqui.', 'info');
+            }
+        } else {
+            mostrarMensagem('⚠️ Nenhum dado encontrado na planilha ou formato inválido.', 'info');
+        }
+    } catch (erro) {
+        console.error('Erro na sincronização:', erro);
+        mostrarMensagem('❌ Erro de conexão ou permissão. Verifique se você atualizou o Script do Google conforme as instruções.', 'error');
+    }
+}
+
 function mostrarConfirmacao(mensagem, callback) {
     document.getElementById('mensagemConfirmacao').textContent = mensagem;
-    document.getElementById('btnConfirmarAcao').onclick = function() {
+    document.getElementById('btnConfirmarAcao').onclick = function () {
         callback();
         fecharModalConfirmacao();
     };
@@ -2796,7 +2855,7 @@ document.head.appendChild(style);
 // Função utilitária para otimizar performance (Debounce)
 function debounce(func, wait) {
     let timeout;
-    return function(...args) {
+    return function (...args) {
         const context = this;
         clearTimeout(timeout);
         timeout = setTimeout(() => func.apply(context, args), wait);
@@ -2808,21 +2867,21 @@ function iniciarCronometro() {
     pararCronometro(); // Limpa anterior se houver
     tempoInicioCronometro = Date.now();
     const display = document.getElementById('cronometro');
-    
-    if(display) {
+
+    if (display) {
         display.classList.remove('hidden');
         display.textContent = '⏱️ 00:00:00';
     }
-    
+
     cronometroInterval = setInterval(() => {
         const agora = Date.now();
         const diff = agora - tempoInicioCronometro;
-        
+
         const seg = Math.floor((diff / 1000) % 60);
         const min = Math.floor((diff / (1000 * 60)) % 60);
         const hr = Math.floor((diff / (1000 * 60 * 60)));
-        
-        if(display) display.textContent = `⏱️ ${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}`;
+
+        if (display) display.textContent = `⏱️ ${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}`;
     }, 1000);
 }
 
@@ -2867,10 +2926,10 @@ function salvarAgendamentoGerencia() {
 
     entrevistas[index].status = 'agendado_gerencia';
     entrevistas[index].dadosGerencia = { data, hora, gerente, obs };
-    
+
     localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
     enviarParaGoogleSheets(entrevistas[index]);
-    
+
     fecharModalGerencia();
     mostrarMensagem('👔 Entrevista com gerência agendada!', 'success');
     carregarHistoricoEntrevistas();
@@ -2889,13 +2948,13 @@ function fecharModalResultadoGerencia() {
 
 function salvarResultadoGerencia(resultado) {
     const index = document.getElementById('indexResultadoGerencia').value;
-    
+
     entrevistas[index].status = resultado;
     entrevistas[index].dataFinalizacao = new Date().toISOString();
-    
+
     localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
     enviarParaGoogleSheets(entrevistas[index]);
-    
+
     fecharModalResultadoGerencia();
     mostrarMensagem(resultado === 'contratado' ? '🎉 Candidato Contratado!' : 'Processo finalizado.', 'success');
     carregarHistoricoEntrevistas();
@@ -2906,10 +2965,10 @@ async function gerarRelatorioStatusFeedback(modo) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
     const periodo = document.getElementById('periodoRelatorio').value;
-    
+
     let titulo = 'RELATÓRIO GERAL DE STATUS & FEEDBACK';
     if (modo === 'pendentes') titulo = 'RELATÓRIO DE FEEDBACKS PENDENTES';
-    
+
     const textoPeriodo = periodo === '7dias' ? ' (Últimos 7 dias)' : periodo === '30dias' ? ' (Últimos 30 dias)' : '';
     titulo += textoPeriodo;
 
@@ -2919,7 +2978,7 @@ async function gerarRelatorioStatusFeedback(modo) {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
     doc.text(titulo, 105, 15, { align: 'center' });
-    
+
     let y = 35;
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
@@ -2957,7 +3016,7 @@ async function gerarRelatorioStatusFeedback(modo) {
         if (periodo === '7dias') dataLimite.setDate(dataLimite.getDate() - 7);
         if (periodo === '30dias') dataLimite.setDate(dataLimite.getDate() - 30);
         dataLimite.setHours(0, 0, 0, 0);
-        
+
         return lista.filter(item => {
             const dataStr = (item.dadosGerencia && item.dadosGerencia.data) ? item.dadosGerencia.data : item.dataEntrevista;
             if (!dataStr) return false;
@@ -2970,7 +3029,7 @@ async function gerarRelatorioStatusFeedback(modo) {
     let reprovadosTriagem = entrevistas.filter(e => e.status === 'reprovado');
     if (modo === 'pendentes') reprovadosTriagem = reprovadosTriagem.filter(e => !e.feedbackEnviado);
     reprovadosTriagem = filtrarPorData(reprovadosTriagem);
-    
+
     addSection(`1. ❌ REPROVADOS NA 1ª ETAPA (${reprovadosTriagem.length})`, reprovadosTriagem, (item) => {
         const feedback = item.feedbackEnviado ? '[Enviado]' : '[PENDENTE]';
         return `${formatarData(item.dataEntrevista)} | ${item.candidatoNome} (${item.cargoNome}) - ${feedback}`;
@@ -2983,12 +3042,12 @@ async function gerarRelatorioStatusFeedback(modo) {
         fluxoGerencia = fluxoGerencia.filter(e => !e.feedbackEnviado && e.status !== 'agendado_gerencia');
     }
     fluxoGerencia = filtrarPorData(fluxoGerencia);
-    
+
     addSection(`2. 👔 FLUXO DE GERÊNCIA (${fluxoGerencia.length})`, fluxoGerencia, (item) => {
         const gerente = item.dadosGerencia ? item.dadosGerencia.gerente : 'N/A';
         const status = item.status === 'agendado_gerencia' ? 'Agendado' : (item.status === 'contratado' ? 'Contratado' : 'Reprovado');
         const feedback = item.feedbackEnviado ? '[Enviado]' : '[PENDENTE]';
-        
+
         if (item.status === 'agendado_gerencia') return `${formatarData(item.dadosGerencia?.data || item.dataEntrevista)} | ${item.candidatoNome} - Gerente: ${gerente} (Aguardando)`;
         return `${formatarData(item.dadosGerencia?.data || item.dataEntrevista)} | ${item.candidatoNome} - ${status} - ${feedback}`;
     });
@@ -3090,7 +3149,7 @@ function verificarAcesso() {
 
         btn.textContent = 'Verificando...';
         btn.style.opacity = '0.7';
-        
+
         try {
             const msgBuffer = new TextEncoder().encode(senha);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);

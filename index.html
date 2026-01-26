@@ -234,14 +234,10 @@
                         <input type="date" id="filtroDataFim" title="Data Final">
                         <select id="filtroStatus">
                             <option value="">Todos status</option>
-                            <option value="aprovado">Aprovados</option>
-                            <option value="reprovado">Reprovados</option>
-                            <option value="analise">Em análise</option>
-                            <option value="agendado">Agendados</option>
-                            <option value="faltou">Faltou</option>
-                            <option value="aprovado_triagem">Aprovado (Triagem)</option>
-                            <option value="agendado_gerencia">Agendado (Gerência)</option>
+                            <option value="aprovado_triagem">Aprovados (Triagem)</option>
+                            <option value="agendado_gerencia">Agendados (Gerência)</option>
                             <option value="contratado">Contratados</option>
+                            <option value="reprovado_gerencia">Reprovados (Gerência)</option>
                         </select>
                     </div>
                 </div>
@@ -347,6 +343,17 @@
                         <p>Restaure entrevistas de um arquivo de backup (substitui ou mescla).</p>
                         <input type="file" id="arquivoBackup" accept=".json" style="margin-bottom: 10px;">
                         <button class="btn btn-secondary" onclick="importarDados()">Restaurar Backup</button>
+                    </div>
+
+                    <div class="backup-card"
+                        style="border-top: 1px solid #eee; padding-top: 20px; grid-column: 1 / -1;">
+                        <h3>🔄 Recuperação em Nuvem</h3>
+                        <p>Perdeu o histórico? Clique abaixo para tentar recuperar os dados salvos na sua Planilha do
+                            Google.</p>
+                        <button class="btn btn-primary" onclick="sincronizarComPlanilha()"
+                            style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: 100%;">
+                            🔄 Sincronizar com Planilha
+                        </button>
                     </div>
                 </div>
 
