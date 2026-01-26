@@ -1,5 +1,98 @@
 // Sistema de Entrevistas - Script Principal
+console.log('Script principal carregado!');
+
+// Vincular funções ao escopo global explicitamente para evitar ReferenceErrors
+window.sincronizarComPlanilha = async function () {
+    console.log('Botão Sincronizar clicado');
+    if (!GOOGLE_SCRIPT_URL) {
+        alert('⚠️ Erro: URL do Google Script não configurada.');
+        return;
+    }
+
+    mostrarMensagem('🔄 Iniciando sincronização com a Planilha...', 'info');
+
+    try {
+        // Adiciona timestamp para evitar cache do navegador
+        const urlComCache = `${GOOGLE_SCRIPT_URL}?action=read&t=${Date.now()}`;
+
+        const response = await fetch(urlComCache);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const dadosPlanilha = await response.json();
+        console.log('Dados recebidos:', dadosPlanilha);
+
+        if (Array.isArray(dadosPlanilha)) {
+            if (dadosPlanilha.length === 0) {
+                mostrarMensagem('ℹ️ A planilha foi acessada, mas não encontramos registros nela.', 'info');
+                return;
+            }
+
+            const idsExistentes = new Set(entrevistas.map(e => e.id));
+            let novosRegistros = 0;
+
+            dadosPlanilha.forEach(item => {
+                // Pequena validação do item para garantir que é um registro de entrevista
+                if (item && item.candidatoNome && !idsExistentes.has(item.id)) {
+                    entrevistas.push(item);
+                    novosRegistros++;
+                }
+            });
+
+            if (novosRegistros > 0) {
+                localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+                const duplicatasRemovidas = removerDuplicatas(); // Limpeza extra após sync
+                carregarDados();
+                let msg = `✅ Sucesso! ${novosRegistros} entrevistas recuperadas.`;
+                if (duplicatasRemovidas > 0) msg += ` (${duplicatasRemovidas} duplicatas ignoradas)`;
+                mostrarMensagem(msg, 'success');
+            } else {
+                mostrarMensagem('ℹ️ Sincronizado! Você já tem todas as entrevistas da planilha no seu computador.', 'info');
+            }
+        } else {
+            console.error('Resposta inválida do Google Script:', dadosPlanilha);
+            mostrarMensagem('❌ A planilha respondeu em um formato inesperado. Verifique o código do Script.', 'error');
+        }
+    } catch (erro) {
+        console.error('Erro detalhado na sincronização:', erro);
+
+        let msgErro = '❌ Erro ao conectar com a planilha.';
+        if (erro.message.includes('fetch')) msgErro = '❌ Erro de rede ou DNS. Verifique sua internet ou a URL.';
+        if (erro.message.includes('JSON')) msgErro = '❌ Erro no formato dos dados retornados pela planilha.';
+
+        mostrarMensagem(`${msgErro} <br><small>Certifique-se de que clicou em <b>"Implantar > Nova Implantação"</b> e escolheu <b>"Qualquer pessoa"</b> no Google Script.</small>`, 'error');
+    }
+
+};
+
+// Função para remover duplicatas (Nome + Cargo + Data)
+function removerDuplicatas() {
+    const vistos = new Set();
+    const listaLimpa = [];
+    let removidos = 0;
+
+    entrevistas.forEach(e => {
+        const chave = `${e.candidatoNome}|${e.cargoNome}|${e.dataEntrevista}`.toLowerCase().trim();
+        if (!vistos.has(chave)) {
+            vistos.add(chave);
+            listaLimpa.push(e);
+        } else {
+            removidos++;
+        }
+    });
+
+    if (removidos > 0) {
+        entrevistas = listaLimpa;
+        localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+    }
+    return removidos;
+}
+
+
 let entrevistas = [];
+
 let cargosAtivos = []; // Variável para armazenar cargos dinâmicos
 try {
     entrevistas = JSON.parse(localStorage.getItem('entrevistas')) || [];
@@ -12,7 +105,7 @@ let ultimoItemExcluido = null;
 let cronometroInterval = null;
 let tempoInicioCronometro = 0;
 let agendaVisualizacao = 'triagem'; // 'triagem' ou 'gerencia'
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbziYqw4CANDC_waumX9zffeuNg2PbB3wJ_y5dI3YTN-2-tjXEBdrD922jUVQvzRfecjdw/exec'; // ⚠️ COLE A URL DO SEU SCRIPT DO GOOGLE AQUI (PASSO 9)
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxlcg9AruQ8UqR8cUh65wJT_xjZYVNdE0vCVXtSyyAVt9LJ0EE3A8rQUpNfDwZD8Z3fDQ/exec'; // ⚠️ COLE A URL DO SEU SCRIPT DO GOOGLE AQUI (PASSO 9)
 
 // Inicialização do sistema
 document.addEventListener('DOMContentLoaded', function () {
@@ -22,6 +115,7 @@ document.addEventListener('DOMContentLoaded', function () {
     carregarDados();
     configurarEventos();
     verificarRascunho();
+    removerDuplicatas(); // Limpar ao abrir o sistema
     inicializarTema();
 });
 
@@ -2541,55 +2635,7 @@ function mostrarMensagem(texto, tipo = 'info') {
     }, 5000);
 }
 
-async function sincronizarComPlanilha() {
-    if (!GOOGLE_SCRIPT_URL) {
-        alert('⚠️ Erro: URL do Google Script não configurada.');
-        return;
-    }
 
-    mostrarMensagem('🔄 Iniciando sincronização com a Planilha...', 'info');
-
-    try {
-        // Faz o fetch com timeout para não travar
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-
-        const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=read`, {
-            method: 'GET',
-            mode: 'cors' // Mudança para cors para conseguir ler o conteúdo se permitido
-        });
-
-        if (!response.ok) throw new Error('Falha na resposta do servidor');
-
-        const dadosPlanilha = await response.json();
-
-        if (Array.isArray(dadosPlanilha) && dadosPlanilha.length > 0) {
-            // Unificar dados (evitar duplicatas por ID)
-            const idsExistentes = new Set(entrevistas.map(e => e.id));
-            let novosRegistros = 0;
-
-            dadosPlanilha.forEach(item => {
-                if (!idsExistentes.has(item.id)) {
-                    entrevistas.push(item);
-                    novosRegistros++;
-                }
-            });
-
-            if (novosRegistros > 0) {
-                localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-                carregarDados(); // Recarregar estatísticas e histórico
-                mostrarMensagem(`✅ Sucesso! ${novosRegistros} novos registros recuperados da planilha.`, 'success');
-            } else {
-                mostrarMensagem('ℹ️ A planilha não possui registros novos além dos que já estão aqui.', 'info');
-            }
-        } else {
-            mostrarMensagem('⚠️ Nenhum dado encontrado na planilha ou formato inválido.', 'info');
-        }
-    } catch (erro) {
-        console.error('Erro na sincronização:', erro);
-        mostrarMensagem('❌ Erro de conexão ou permissão. Verifique se você atualizou o Script do Google conforme as instruções.', 'error');
-    }
-}
 
 function mostrarConfirmacao(mensagem, callback) {
     document.getElementById('mensagemConfirmacao').textContent = mensagem;
