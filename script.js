@@ -51,18 +51,26 @@ window.sincronizarComPlanilha = async function () {
                 if (item && item.candidatoNome) {
                     const indexExistente = entrevistas.findIndex(e => e.id === item.id);
                     if (indexExistente !== -1) {
-                        // COMPARAÇÃO INTELIGENTE: Quem tem mais informações?
-                        const pesoLocal = (entrevistas[indexExistente].respostas ? entrevistas[indexExistente].respostas.length : 0);
-                        const pesoPlanilha = (item.respostas ? item.respostas.length : 0);
+                        // COMPARAÇÃO INTELIGENTE: Quem tem a informação mais relevante?
+                        const pesosStatus = {
+                            'vaga_cancelada': 1000, 'desistencia_candidato': 1000, 'contratado': 1000,
+                            'reprovado': 1000, 'reprovado_gerencia': 1000, 'faltou': 1000,
+                            'aprovado_triagem': 500, 'aprovado': 500,
+                            'agendado_gerencia': 400, 'analise': 300, 'agendado': 100
+                        };
 
-                        if (pesoPlanilha >= pesoLocal) {
-                            // Planilha está mais completa ou igual: atualiza local
+                        const pontosLocal = (entrevistas[indexExistente].respostas ? entrevistas[indexExistente].respostas.length : 0) + (pesosStatus[entrevistas[indexExistente].status] || 0);
+                        const pontosPlanilha = (item.respostas ? item.respostas.length : 0) + (pesosStatus[item.status] || 0);
+
+                        if (pontosPlanilha > pontosLocal) {
+                            // Planilha está mais avançada ou completa: atualiza local
                             entrevistas[indexExistente] = { ...entrevistas[indexExistente], ...item };
                             atualizados++;
-                        } else {
-                            // Local está mais completo: prepara para subir para a planilha
+                        } else if (pontosLocal > pontosPlanilha) {
+                            // Local está mais avançado: prepara para subir para a planilha
                             precisaSubir.push(entrevistas[indexExistente]);
                         }
+                        // Se forem iguais (pontosPlanilha === pontosLocal), não faz nada para evitar loops infinitos
                     } else {
                         // Não existe localmente: Adiciona novo vindo da nuvem
                         entrevistas.push(item);
@@ -138,10 +146,17 @@ window.removerDuplicatas = function () {
     const totalAntes = entrevistas.length;
     const vistos = new Map();
 
-    // Ordenar para que os itens com mais dados (respostas) venham primeiro
+    // Ordenar para que os itens com mais relevância (status e respostas) venham primeiro
     const entrevistasOrdenadas = [...entrevistas].sort((a, b) => {
-        const pesoA = (a.respostas ? a.respostas.length : 0) + (a.status === 'contratado' ? 100 : 0);
-        const pesoB = (b.respostas ? b.respostas.length : 0) + (b.status === 'contratado' ? 100 : 0);
+        const pesosStatus = {
+            'vaga_cancelada': 1000, 'desistencia_candidato': 1000, 'contratado': 1000,
+            'reprovado': 1000, 'reprovado_gerencia': 1000, 'faltou': 1000,
+            'aprovado_triagem': 500, 'aprovado': 500,
+            'agendado_gerencia': 400, 'analise': 300, 'agendado': 100
+        };
+
+        const pesoA = (a.respostas ? a.respostas.length : 0) + (pesosStatus[a.status] || 0);
+        const pesoB = (b.respostas ? b.respostas.length : 0) + (pesosStatus[b.status] || 0);
         return pesoB - pesoA;
     });
 
