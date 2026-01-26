@@ -541,8 +541,17 @@ body.dark-mode .nota-btn {
 }
 
 .entrevistas-lista {
-    max-height: 600px;
+    max-height: 800px;
     overflow-y: auto;
+    padding-right: 5px;
+}
+
+.secao-historico {
+    margin-bottom: 30px;
+}
+
+.secao-historico:last-child {
+    margin-bottom: 0;
 }
 
 .entrevista-item {

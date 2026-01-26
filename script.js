@@ -1521,7 +1521,7 @@ function carregarHistoricoEntrevistas(filtro = '') {
 
 
     container.innerHTML = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
+        <div class="historico-layout-unificado">
             <div class="secao-historico">
                 <h3 onclick="toggleSecaoHistorico('secao-agendadas')" style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
                     <span>📅 Agendadas / Em Andamento (${agendadas.length})</span>
@@ -1532,12 +1532,12 @@ function carregarHistoricoEntrevistas(filtro = '') {
                 </div>
             </div>
             <div class="secao-historico">
-                <h3 onclick="toggleSecaoHistorico('secao-realizadas')" style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                    <span>✅ Histórico (${realizadas.length})</span>
-                    <span id="icon-secao-realizadas" style="font-size: 0.8em; opacity: 0.6;">▼</span>
+                <h3 onclick="toggleSecaoHistorico('secao-concluidas')" style="color: #6a0dad; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                    <span>✅ Histórico (${concluidas.length})</span>
+                    <span id="icon-secao-concluidas" style="font-size: 0.8em; opacity: 0.6;">▼</span>
                 </h3>
-                <div id="secao-realizadas" class="conteudo-secao">
-                    ${realizadas.length ? realizadas.map(gerarCard).join('') : '<div class="no-data">Nenhuma entrevista realizada encontrada.</div>'}
+                <div id="secao-concluidas" class="conteudo-secao">
+                    ${concluidas.length ? concluidas.map(gerarCard).join('') : '<div class="no-data">Nenhuma entrevista finalizada encontrada.</div>'}
                 </div>
             </div>
         </div>
