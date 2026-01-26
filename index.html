@@ -280,7 +280,20 @@
         <!-- ABA: ESTATÍSTICAS -->
         <div class="tab-content" id="tab-estatisticas">
             <div class="card">
-                <h2>📈 Estatísticas do Processo Seletivo</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>📈 Estatísticas e Conversão</h2>
+                    <button class="btn btn-small btn-secondary" onclick="atualizarEstatisticas()">🔄 Atualizar</button>
+                </div>
+
+                <!-- GRÁFICO DE FUNIL -->
+                <div class="funnel-container"
+                    style="margin-bottom: 40px; padding: 20px; background: #fbfaff; border-radius: 15px; border: 1px dashed #dcd6f7;">
+                    <h3 style="text-align: center; color: #6a0dad; margin-bottom: 20px;">🌪️ Funil de Conversão (Total)
+                    </h3>
+                    <div id="funnelChart" class="funnel-chart">
+                        <!-- Renderizado via JS -->
+                    </div>
+                </div>
 
                 <div class="stats-container">
                     <div class="stat-card">

@@ -164,6 +164,42 @@ window.removerDuplicatas = function () {
     return removidos;
 };
 
+// --- SCRIPTS WHATSAPP ---
+window.obterDiaDaSemana = function (dataString) {
+    if (!dataString) return "";
+    const dias = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+    // Forçar interpretação local da data (sem fuso horário UTC)
+    const [ano, mes, dia] = dataString.split('-').map(Number);
+    const data = new Date(ano, mes - 1, dia);
+    return dias[data.getDay()];
+};
+
+window.copiarParaAreaTransferencia = function (texto) {
+    navigator.clipboard.writeText(texto).then(() => {
+        mostrarMensagem("📋 Texto copiado para a área de transferência!", "success");
+    }).catch(err => {
+        console.error('Erro ao copiar:', err);
+        mostrarMensagem("❌ Erro ao copiar texto.", "error");
+    });
+};
+
+window.gerarTextoGerencia = function (index) {
+    const e = entrevistas[index];
+    if (!e || !e.dadosGerencia) return "";
+
+    const diaSemana = obterDiaDaSemana(e.dadosGerencia.data);
+    const dataFormatada = formatarData(e.dadosGerencia.data);
+
+    return `Olá, ${e.candidatoNome}, tudo bem?\n\nConvidamos para a próxima etapa que será uma entrevista presencial. Você tem disponibilidade no horário:\n\nData: ${diaSemana}, ${dataFormatada}\nHorário: ${e.dadosGerencia.hora}\nEndereço: Estrada do Quitungo, 588 - Brás de Pina\nContato no local: Cátia\n\nAguardamos você! Qualquer dúvida, estou à disposição.`;
+};
+
+window.gerarTextoReprovacao = function (index) {
+    const e = entrevistas[index];
+    if (!e) return "";
+
+    return `Olá caro candidato.\n\nAgradecemos pelo tempo dedicado em se candidatar à nossa oportunidade e por compartilhar conosco sua experiência e habilidades. Reconhecemos o valor que você poderia trazer para nossa equipe.\n\nInfelizmente, após uma análise cuidadosa, entendemos que seu perfil não se encaixa às nossas necessidades nesse momento. Sua trajetória profissional é admirável, e acreditamos que novas oportunidades virão.\n\nSeu currículo permanecerá em nosso banco de talentos, e caso surja uma posição mais alinhada ao seu perfil, entraremos em contato. Desejamos muito sucesso em sua busca e carreira!\n\nPrincesinha Festas`;
+};
+
 
 let cargoSelecionado = null;
 let entrevistaAtual = null;
@@ -730,7 +766,17 @@ function executarSalvamento(btnSalvar, textoOriginal) {
     limparFormulario();
 
     // Mostrar confirmação
-    mostrarMensagem('✅ Entrevista salva com sucesso!', 'success');
+    if (statusFinal === 'reprovado') {
+        const index = entrevistas.findIndex(e => e.id === entrevistaAtual.id);
+        mostrarMensagem(`
+            ✅ Entrevista salva como Reprovado.<br>
+            <button onclick="copiarParaAreaTransferencia(gerarTextoReprovacao(${index}))" style="margin-top:10px; padding:8px 12px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
+                📋 Copiar Texto Reprovação
+            </button>
+        `, 'error');
+    } else {
+        mostrarMensagem('✅ Entrevista salva com sucesso!', 'success');
+    }
 
     // Atualizar histórico
     carregarHistoricoEntrevistas();
@@ -1285,10 +1331,21 @@ function carregarPainelDia(dataFiltro = null) {
                         <strong style="font-size: 1.1em;">${item.candidatoNome}</strong> - ${item.cargoNome}
                         ${item.dadosGerencia && item.dadosGerencia.gerente ? `<br><small style="color: #666;">👔 Gerente: ${item.dadosGerencia.gerente}</small>` : ''}
                     </div>
+                    <div style="margin-top: 10px; display: flex; gap: 5px;">
+                        ${item.status === 'agendado_gerencia' ? `<button class="btn btn-small btn-secondary" onclick="copiarParaAreaTransferencia(gerarTextoGerencia(${realIndex}))" title="Copiar convite WhatsApp">📋 Copiar Convite</button>` : ''}
+                        ${item.status === 'reprovado' || item.status === 'reprovado_gerencia' ? `<button class="btn btn-small btn-secondary" onclick="copiarParaAreaTransferencia(gerarTextoReprovacao(${realIndex}))" title="Copiar texto de reprovação">📋 Copiar Reprovação</button>` : ''}
+                    </div>
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center;">
                     ${(item.status === 'agendado' || item.status === 'agendado_gerencia' || item.status === 'analise' || item.status === 'aprovado_triagem') ?
-                `<button class="btn btn-small" onclick="${item.status === 'agendado_gerencia' ? `abrirModalResultadoGerencia(${realIndex})` : `editarEntrevista(${realIndex})`}" style="background: ${corStatus};">▶️ Iniciar/Finalizar</button>` :
+                `
+                        <select onchange="mudarStatusRapido(${realIndex}, this.value)" class="btn btn-small btn-secondary" style="width: auto; height: 32px; padding: 0 5px;">
+                            <option value="">⚡ Ações</option>
+                            <option value="vaga_cancelada">🚫 Cancelar Vaga</option>
+                            <option value="desistencia_candidato">🚶 Desistência</option>
+                        </select>
+                        <button class="btn btn-small" onclick="${item.status === 'agendado_gerencia' ? `abrirModalResultadoGerencia(${realIndex})` : `editarEntrevista(${realIndex})`}" style="background: ${corStatus};">▶️ Iniciar/Finalizar</button>
+                        ` :
                 `<button class="btn btn-small btn-secondary" onclick="verDetalhesEntrevista(${realIndex})" title="Ver resumo">👁️ Ver</button>`
             }
                 </div>
@@ -1459,6 +1516,33 @@ function carregarHistoricoEntrevistas(filtro = '') {
             botoesAcao += `
                 <button class="btn btn-small btn-success" onclick="abrirModalResultadoGerencia(${realIndex})">
                     ✅ Resultado Gerência
+                </button>
+            `;
+        }
+
+        // Ações Rápidas (Sempre visíveis se o processo não estiver finalizado)
+        if (!['contratado', 'reprovado', 'reprovado_gerencia', 'vaga_cancelada', 'desistencia_candidato'].includes(entrevista.status)) {
+            botoesAcao += `
+                <select onchange="mudarStatusRapido(${realIndex}, this.value)" class="btn btn-small btn-secondary" style="width: auto; height: 32px; padding: 0 5px;">
+                    <option value="">⚡ Ações</option>
+                    <option value="vaga_cancelada">🚫 Cancelar Vaga</option>
+                    <option value="desistencia_candidato">🚶 Desistência</option>
+                </select>
+            `;
+        }
+
+        // Botões de Cópia de Script
+        if (entrevista.status === 'agendado_gerencia') {
+            botoesAcao += `
+                <button class="btn btn-small btn-secondary" onclick="copiarParaAreaTransferencia(gerarTextoGerencia(${realIndex}))">
+                    📋 Copiar Convite
+                </button>
+            `;
+        }
+        if (['reprovado', 'reprovado_gerencia'].includes(entrevista.status)) {
+            botoesAcao += `
+                <button class="btn btn-small btn-secondary" onclick="copiarParaAreaTransferencia(gerarTextoReprovacao(${realIndex}))">
+                    📋 Copiar Reprovação
                 </button>
             `;
         }
@@ -2474,18 +2558,50 @@ function atualizarEstatisticas() {
         }
     }
 
-    const aprovados = entrevistas.filter(e => e.status === 'aprovado' || e.status === 'aprovado_triagem' || e.status === 'contratado').length;
-    const reprovados = entrevistas.filter(e => e.status === 'reprovado' || e.status === 'reprovado_gerencia').length;
-    const faltou = entrevistas.filter(e => e.status === 'faltou').length;
+    if (!document.getElementById('totalEntrevistas')) return;
 
-    document.getElementById('totalAprovados').textContent = aprovados;
-    document.getElementById('totalReprovados').textContent = reprovados;
-    document.getElementById('totalFaltou').textContent = faltou;
+    const aprovadosTriagem = entrevistas.filter(e => e.status === 'aprovado_triagem' || e.status === 'aprovado').length;
+    const agendadosGerencia = entrevistas.filter(e => e.status === 'agendado_gerencia' || e.status === 'reprovado_gerencia' || e.status === 'contratado').length;
+    const contratados = entrevistas.filter(e => e.status === 'contratado').length;
+    const reprovadosTotal = entrevistas.filter(e => e.status === 'reprovado' || e.status === 'reprovado_gerencia').length;
 
-    // Taxa baseada apenas no que foi REALIZADO (exclui agendados)
+    // Atualizar números nos cards
+    document.getElementById('totalEntrevistas').textContent = total;
+    document.getElementById('totalAprovados').textContent = contratados; // Contratado é o "aprovado final"
+    document.getElementById('totalReprovados').textContent = reprovadosTotal;
+
+    // RENDERIZAR GRÁFICO DE FUNIL
+    const funnelContainer = document.getElementById('funnelChart');
+    if (funnelContainer) {
+        const percTriagem = 100;
+        const percGerencia = total > 0 ? (agendadosGerencia / total * 100).toFixed(0) : 0;
+        const percContratado = total > 0 ? (contratados / total * 100).toFixed(0) : 0;
+
+        funnelContainer.innerHTML = `
+            <div class="funnel-step" style="width: 100%; background: #8a2be2">
+                <span class="step-label">Triagem Inicial</span>
+                <span class="step-value">${total} candidatos (100%)</span>
+            </div>
+            <div class="funnel-step" style="width: ${Math.max(40, percGerencia)}%; background: #ff7e5f">
+                <span class="step-label">Entrevista Gerência</span>
+                <span class="step-value">${agendadosGerencia} candidatos (${percGerencia}%)</span>
+            </div>
+            <div class="funnel-step" style="width: ${Math.max(20, percContratado)}%; background: #00b09b">
+                <span class="step-label">Contratados</span>
+                <span class="step-value">${contratados} candidatos (${percContratado}%)</span>
+            </div>
+            <div style="text-align: center; margin-top: 15px; font-size: 0.9em; color: #666;">
+                🎯 <strong>Taxa de Eficiência Final:</strong> ${percContratado}% das triagens convertem em contratação.
+            </div>
+        `;
+    }
+    // Cálculos para outras taxas
     const baseCalculo = realizados > 0 ? realizados : 0;
-    const taxa = baseCalculo > 0 ? Math.round((aprovados / baseCalculo) * 100) : 0;
-    document.getElementById('taxaAprovacao').textContent = `${taxa}%`;
+    const taxa = baseCalculo > 0 ? Math.round((aprovadosTriagem / baseCalculo) * 100) : 0;
+
+    if (document.getElementById('taxaAprovacao')) {
+        document.getElementById('taxaAprovacao').textContent = `${taxa}%`;
+    }
 
     // Gráfico de cargos
     atualizarGraficoCargos();
@@ -2794,13 +2910,14 @@ function mostrarMensagem(texto, tipo = 'info') {
 
     document.body.appendChild(mensagem);
 
-    // Remover após 5 segundos
+    // Remover após 5 segundos (ou mais se tiver botões)
+    const timeout = texto.includes('<button') ? 15000 : 5000;
     setTimeout(() => {
         if (mensagem.parentElement) {
             mensagem.style.animation = 'slideOut 0.3s ease';
             setTimeout(() => mensagem.remove(), 300);
         }
-    }, 5000);
+    }, timeout);
 }
 
 
@@ -3145,8 +3262,14 @@ function salvarAgendamentoGerencia() {
     enviarParaGoogleSheets(entrevistas[index]);
 
     fecharModalGerencia();
-    mostrarMensagem('👔 Entrevista com gerência agendada!', 'success');
+    mostrarMensagem(`
+        👔 Agendamento de gerência salvo!<br>
+        <button onclick="copiarParaAreaTransferencia(gerarTextoGerencia(${index}))" style="margin-top:10px; padding:8px 12px; background:#c2410c; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
+            📋 Copiar Convite WhatsApp
+        </button>
+    `, 'success');
     carregarHistoricoEntrevistas();
+    carregarPainelDia();
 }
 
 window.abrirModalResultadoGerencia = function (index) {
@@ -3162,23 +3285,54 @@ window.fecharModalResultadoGerencia = function () {
 
 window.salvarResultadoGerencia = function (resultado) {
     const index = document.getElementById('indexResultadoGerencia').value;
+    const e = entrevistas[index];
 
-    entrevistas[index].status = resultado;
-    entrevistas[index].dataFinalizacao = new Date().toISOString();
+    e.status = resultado;
+    e.dataFinalizacao = new Date().toISOString();
 
     localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-    enviarParaGoogleSheets(entrevistas[index]);
+    enviarParaGoogleSheets(e);
 
     fecharModalResultadoGerencia();
 
-    let msg = 'Processo finalizado.';
-    if (resultado === 'contratado') msg = '🎉 Candidato Contratado!';
-    if (resultado === 'vaga_cancelada') msg = '🚫 Vaga marcada como cancelada.';
-    if (resultado === 'desistencia_candidato') msg = '🚶 Registrada desistência do candidato.';
+    // Se for reprovado na gerência, também oferece o script
+    if (resultado === 'reprovado_gerencia') {
+        mostrarMensagem(`
+            ✅ Resultado salvo como Reprovado.<br>
+            <button onclick="copiarParaAreaTransferencia(gerarTextoReprovacao(${index}))" style="margin-top:10px; padding:8px 12px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
+                📋 Copiar Texto Reprovação
+            </button>
+        `, 'error');
+    } else {
+        mostrarMensagem('✅ Resultado da gerência salvo com sucesso!', 'success');
+    }
 
-    mostrarMensagem(msg, 'success');
     carregarHistoricoEntrevistas();
-    carregarAgenda();
+    carregarPainelDia();
+    atualizarEstatisticas();
+};
+
+window.mudarStatusRapido = function (index, novoStatus) {
+    if (!novoStatus) return;
+
+    const e = entrevistas[index];
+    const labels = {
+        'vaga_cancelada': '🚫 Vaga Cancelada',
+        'desistencia_candidato': '🚶 Desistência do Candidato'
+    };
+
+    mostrarConfirmacao(`Deseja alterar o status de ${e.candidatoNome} para "${labels[novoStatus]}"?`, () => {
+        e.status = novoStatus;
+        e.dataFinalizacao = new Date().toISOString();
+
+        localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+        enviarParaGoogleSheets(e);
+
+        mostrarMensagem(`✅ Status atualizado: ${labels[novoStatus]}`, 'success');
+        carregarPainelDia();
+        carregarHistoricoEntrevistas();
+        atualizarEstatisticas();
+    });
 };
 
 async function gerarRelatorioStatusFeedback(modo) {
