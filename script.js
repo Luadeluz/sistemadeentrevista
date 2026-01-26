@@ -43,25 +43,35 @@ window.sincronizarComPlanilha = async function () {
                 return;
             }
 
-            const idsExistentes = new Set(entrevistas.map(e => e.id));
             let novosRegistros = 0;
+            let atualizados = 0;
 
             dadosPlanilha.forEach(item => {
-                if (item && item.candidatoNome && !idsExistentes.has(item.id)) {
-                    entrevistas.push(item);
-                    novosRegistros++;
+                if (item && item.candidatoNome) {
+                    const indexExistente = entrevistas.findIndex(e => e.id === item.id);
+                    if (indexExistente !== -1) {
+                        // Atualiza registro existente (caso tenha dados novos na planilha)
+                        entrevistas[indexExistente] = { ...entrevistas[indexExistente], ...item };
+                        atualizados++;
+                    } else {
+                        // Adiciona novo registro
+                        entrevistas.push(item);
+                        novosRegistros++;
+                    }
                 }
             });
 
-            if (novosRegistros > 0) {
+            if (novosRegistros > 0 || atualizados > 0) {
                 localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
                 const duplicatasRemovidas = removerDuplicatas();
                 carregarDados();
-                let msg = `✅ Sucesso! ${novosRegistros} entrevistas recuperadas.`;
-                if (duplicatasRemovidas > 0) msg += ` (${duplicatasRemovidas} duplicatas limpas)`;
+                let msg = `✅ Sincronizado!`;
+                if (novosRegistros > 0) msg += ` ${novosRegistros} novos.`;
+                if (atualizados > 0) msg += ` ${atualizados} atualizados.`;
+                if (duplicatasRemovidas > 0) msg += ` (${duplicatasRemovidas} replicados limpos)`;
                 mostrarMensagem(msg, 'success');
             } else {
-                mostrarMensagem('ℹ️ Seu sistema já está atualizado com todos os dados da planilha.', 'info');
+                mostrarMensagem('ℹ️ Seu sistema já está 100% igual à planilha.', 'info');
             }
         } else {
             console.warn('Formato inesperado:', dadosPlanilha);
@@ -97,27 +107,35 @@ window.limparDadosTeste = function () {
 };
 
 // Função para remover duplicatas (Nome + Cargo + Data)
-function removerDuplicatas() {
-    const vistos = new Set();
-    const listaLimpa = [];
-    let removidos = 0;
+window.removerDuplicatas = function () {
+    const totalAntes = entrevistas.length;
+    const vistos = new Map();
 
-    entrevistas.forEach(e => {
-        const chave = `${e.candidatoNome}|${e.cargoNome}|${e.dataEntrevista}`.toLowerCase().trim();
-        if (!vistos.has(chave)) {
-            vistos.add(chave);
-            listaLimpa.push(e);
-        } else {
-            removidos++;
-        }
+    // Ordenar para que os itens com mais dados (respostas) venham primeiro
+    const entrevistasOrdenadas = [...entrevistas].sort((a, b) => {
+        const pesoA = (a.respostas ? a.respostas.length : 0) + (a.status === 'contratado' ? 100 : 0);
+        const pesoB = (b.respostas ? b.respostas.length : 0) + (b.status === 'contratado' ? 100 : 0);
+        return pesoB - pesoA;
     });
 
-    if (removidos > 0) {
-        entrevistas = listaLimpa;
-        localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
-    }
+    const filtrados = entrevistasOrdenadas.filter(e => {
+        if (!e || !e.candidatoNome) return false;
+
+        // Chave de unicidade (Nome + Cargo + Data) para limpar até se IDs forem diferentes por erro
+        const chave = `${e.candidatoNome.trim().toLowerCase()}|${e.cargo}|${e.dataEntrevista}`;
+
+        if (vistos.has(chave)) return false;
+        vistos.set(chave, true);
+        return true;
+    });
+
+    entrevistas = filtrados;
+    localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+
+    const removidos = totalAntes - entrevistas.length;
+    if (removidos > 0) console.log(`🧹 Limpeza: ${removidos} duplicatas removidas.`);
     return removidos;
-}
+};
 
 
 let cargoSelecionado = null;
@@ -504,16 +522,28 @@ window.iniciarEntrevista = function () {
         return;
     }
 
-    // Criar objeto da entrevista
+    // --- PROTEÇÃO DE ID: Verificar se este candidato já tem um agendamento pendente ---
+    const agendamentoExistente = entrevistas.find(e =>
+        e.candidatoNome.trim().toLowerCase() === dadosBasicos.candidatoNome.trim().toLowerCase() &&
+        e.cargo === dadosBasicos.cargo &&
+        (e.status === 'agendado' || e.status === 'agendado_gerencia' || e.status === 'aprovado_triagem')
+    );
+
+    // Se já existe um agendamento, HERDA o ID dele para evitar duplicar na planilha
+    const idUnico = (entrevistaAtual && entrevistaAtual.id) ? entrevistaAtual.id :
+        (agendamentoExistente ? agendamentoExistente.id : `entrevista_${Date.now()}`);
+
+    // Criar/Atualizar objeto da entrevista
     entrevistaAtual = {
-        id: `entrevista_${Date.now()}`,
+        ...(agendamentoExistente || {}), // Herda dados existentes se houver
         ...dadosBasicos,
-        respostas: [],
-        avaliacoes: {},
-        pontosFortes: '',
-        pontosMelhorar: '',
-        observacoes: '',
-        status: 'analise' // Status inicial ao começar a entrevista
+        id: idUnico,
+        respostas: (agendamentoExistente && agendamentoExistente.respostas && agendamentoExistente.respostas.length > 0) ? agendamentoExistente.respostas : [],
+        avaliacoes: (agendamentoExistente && agendamentoExistente.avaliacoes) ? agendamentoExistente.avaliacoes : {},
+        pontosFortes: (agendamentoExistente && agendamentoExistente.pontosFortes) ? agendamentoExistente.pontosFortes : '',
+        pontosMelhorar: (agendamentoExistente && agendamentoExistente.pontosMelhorar) ? agendamentoExistente.pontosMelhorar : '',
+        observacoes: (agendamentoExistente && agendamentoExistente.observacoes) ? agendamentoExistente.observacoes : '',
+        status: (agendamentoExistente && agendamentoExistente.status === 'agendado_gerencia') ? 'agendado_gerencia' : 'analise'
     };
 
     // Alertar que entrevista começou
@@ -786,6 +816,20 @@ window.salvarAgendamento = function () {
     }
 
     const cargo = cargosAtivos.find(c => c.id === dadosBasicos.cargo);
+
+    // --- PROTEÇÃO: Verificar se já existe agendamento igual para evitar cliques duplos ---
+    const jaExiste = entrevistas.find(e =>
+        e.candidatoNome.trim().toLowerCase() === dadosBasicos.candidatoNome.trim().toLowerCase() &&
+        e.cargo === dadosBasicos.cargo &&
+        e.dataEntrevista === dadosBasicos.dataEntrevista &&
+        e.status === 'agendado'
+    );
+
+    if (jaExiste) {
+        mostrarMensagem('ℹ️ Este candidato já está agendado para este dia.', 'info');
+        document.querySelector('[data-tab="agenda"]').click();
+        return;
+    }
 
     const agendamento = {
         id: `agendamento_${Date.now()}`,
@@ -1613,14 +1657,13 @@ function editarEntrevista(index) {
                 document.querySelector('input[name="status"][value="aprovado"]').checked = true;
             }
 
-            // Remover entrevista do array (será readicionada ao salvar)
-            entrevistas.splice(index, 1);
-            localStorage.setItem('entrevistas', JSON.stringify(entrevistas));
+            // --- CORREÇÃO: NÃO REMOVER DO ARRAY AO EDITAR ---
+            // Apenas carregamos para entrevistaAtual. O salvamento cuidará do resto.
 
             // Atualizar histórico
             carregarHistoricoEntrevistas();
 
-            mostrarMensagem('📝 Entrevista carregada para edição. Faça as alterações e salve novamente.', 'info');
+            mostrarMensagem('📝 Entrevista carregada. O ID original foi preservado para evitar duplicatas.', 'info');
         }, 300); // Tempo reduzido para ser mais ágil
     }, 50);
 }
