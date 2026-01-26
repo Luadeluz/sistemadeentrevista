@@ -64,7 +64,13 @@ window.sincronizarComPlanilha = async function () {
 
                         if (pontosPlanilha > pontosLocal) {
                             // Planilha está mais avançada ou completa: atualiza local
+                            // Importante: Preservar dadosGerencia se o item da planilha não tiver
+                            const dadosGerenciaAntigos = entrevistas[indexExistente].dadosGerencia;
                             entrevistas[indexExistente] = { ...entrevistas[indexExistente], ...item };
+
+                            if (dadosGerenciaAntigos && !entrevistas[indexExistente].dadosGerencia) {
+                                entrevistas[indexExistente].dadosGerencia = dadosGerenciaAntigos;
+                            }
                             atualizados++;
                         } else if (pontosLocal > pontosPlanilha) {
                             // Local está mais avançado: prepara para subir para a planilha
@@ -1071,7 +1077,7 @@ window.carregarAgenda = function () {
     if (agendaVisualizacao === 'triagem') {
         listaFiltrada = entrevistas.filter(e => e.status === 'agendado');
     } else {
-        listaFiltrada = entrevistas.filter(e => e.status === 'agendado_gerencia');
+        listaFiltrada = entrevistas.filter(e => e.status === 'agendado_gerencia' || e.status === 'aprovado_triagem' || e.status === 'aprovado');
     }
 
     // Ordenar por data
@@ -1122,11 +1128,17 @@ window.carregarAgenda = function () {
                             <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${realIndex})">🗑️ Excluir</button>
                         `;
             } else {
-                botoes = `
-                            <button class="btn btn-small btn-secondary" onclick="mostrarEdicaoGerencia(${realIndex})" style="background: #fff7ed; color: #c2410c; border-color: #fdba74;">✏️ Editar</button>
-                            <button class="btn btn-small btn-success" onclick="abrirModalResultadoGerencia(${realIndex})">✅ Resultado</button>
-                            <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${realIndex})">🗑️ Cancelar</button>
-                        `;
+                if (item.status === 'aprovado_triagem' || item.status === 'aprovado') {
+                    botoes = `
+                        <button class="btn btn-small btn-primary" onclick="abrirModalGerencia(${realIndex})">📅 Agendar Gerência</button>
+                    `;
+                } else {
+                    botoes = `
+                        <button class="btn btn-small btn-secondary" onclick="mostrarEdicaoGerencia(${realIndex})" style="background: #fff7ed; color: #c2410c; border-color: #fdba74;">✏️ Editar</button>
+                        <button class="btn btn-small btn-success" onclick="abrirModalResultadoGerencia(${realIndex})">✅ Resultado</button>
+                        <button class="btn btn-small btn-danger" onclick="excluirEntrevista(${realIndex})">🗑️ Cancelar</button>
+                    `;
+                }
             }
 
             return `
