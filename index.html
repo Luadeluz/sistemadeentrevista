@@ -176,6 +176,18 @@
                             </div>
                         </div>
 
+                        <div id="aiAnalysisContainer" style="margin-bottom: 20px;">
+                            <button type="button" id="btnAnalisarIA" class="btn btn-secondary" onclick="analisarComIA()"
+                                style="width: 100%; height: 50px; background: linear-gradient(135deg, #6a0dad 0%, #a855f7 100%); color: white; border: none; font-weight: bold; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(106, 13, 173, 0.2);">
+                                <span id="aiBtnIcon">🤖</span> <span id="aiBtnText">Gerar Análise com IA</span>
+                            </button>
+                            <div id="aiLoader" class="hidden" style="text-align: center; margin-top: 10px;">
+                                <div class="pulse-loader"></div>
+                                <p style="font-size: 12px; color: #6a0dad; margin-top: 5px;">A IA está lendo as
+                                    respostas e gerando o parecer...</p>
+                            </div>
+                        </div>
+
                         <button type="button" class="btn btn-success" onclick="salvarEntrevista()" style="width: 100%;">
                             💾 Salvar Entrevista Completa
                         </button>
@@ -343,10 +355,29 @@
         <!-- ABA: CONFIGURAÇÕES (BACKUP) -->
         <div class="tab-content" id="tab-configuracoes">
             <div class="card">
-                <h2>⚙️ Gerenciamento de Dados</h2>
-                <p>Faça o backup dos seus dados ou restaure de um arquivo salvo anteriormente.</p>
+                <h2>⚙️ Configurações do Sistema</h2>
+                <p>Gerencie integrações e backup dos seus dados.</p>
 
                 <div class="backup-actions">
+                    <!-- CONFIGURAÇÃO DA IA -->
+                    <div class="backup-card"
+                        style="grid-column: 1 / -1; border: 2px solid #a855f7; background: #faf5ff;">
+                        <h3 style="color: #6a0dad;">🤖 Inteligência Artificial (Gemini)</h3>
+                        <p style="font-size: 14px;">Para que o Copiloto funcione, cole sua <strong>API Key</strong> do
+                            Google abaixo. As anotações serão feitas automaticamente baseadas na sua conversa.</p>
+                        <div class="form-group" style="margin-top: 15px;">
+                            <div style="display: flex; gap: 10px;">
+                                <input type="password" id="geminiApiKey" placeholder="Cole sua chave AIzaSy... aqui"
+                                    style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #dcd6f7;">
+                                <button class="btn btn-primary" onclick="salvarConfiguracoesIA()"
+                                    style="background: #6a0dad;">Salvar Chave</button>
+                            </div>
+                            <small id="statusApiKey" style="display: block; margin-top: 5px; color: #666;"></small>
+                        </div>
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank"
+                            style="font-size: 12px; color: #a855f7; text-decoration: none;">🔗 Obter chave gratuita no
+                            Google AI Studio</a>
+                    </div>
                     <div class="backup-card">
                         <h3>📤 Exportar Dados</h3>
                         <p>Baixe um arquivo JSON com todo o histórico de entrevistas.</p>

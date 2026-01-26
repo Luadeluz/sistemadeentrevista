@@ -446,6 +446,7 @@ function configurarAbas() {
                     break;
                 case 'configuracoes':
                     renderizarListaCargos();
+                    inicializarConfiguracoesIA();
                     break;
                 case 'painel-dia':
                     carregarPainelDia();
@@ -3616,4 +3617,126 @@ function verificarAcesso() {
     document.getElementById('inputSenhaLogin').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') tentarLogin();
     });
+}
+
+// --- INTEGRAÇÃO COM IA (GEMINI) ---
+
+function inicializarConfiguracoesIA() {
+    const apiKey = localStorage.getItem('geminiApiKey');
+    if (apiKey && document.getElementById('geminiApiKey')) {
+        document.getElementById('geminiApiKey').value = apiKey;
+        const statusEl = document.getElementById('statusApiKey');
+        if (statusEl) {
+            statusEl.innerHTML = '✅ Chave configurada e ativa.';
+            statusEl.style.color = '#059669';
+        }
+    }
+}
+
+window.salvarConfiguracoesIA = function () {
+    const key = document.getElementById('geminiApiKey').value.trim();
+    if (!key) {
+        mostrarMensagem('❌ Digite uma chave válida.', 'error');
+        return;
+    }
+
+    localStorage.setItem('geminiApiKey', key);
+    mostrarMensagem('✅ Gemini API Key salva com sucesso!', 'success');
+    inicializarConfiguracoesIA();
+}
+
+window.analisarComIA = async function () {
+    const apiKey = localStorage.getItem('geminiApiKey');
+    if (!apiKey) {
+        mostrarMensagem('⚠️ Configure a API Key nas Configurações primeiro!', 'error');
+        const tabConfig = document.querySelector('[data-tab="configuracoes"]');
+        if (tabConfig) tabConfig.click();
+        return;
+    }
+
+    // Coletar respostas atuais
+    const respostas = [];
+    document.querySelectorAll('.resposta-pergunta').forEach(textarea => {
+        const index = parseInt(textarea.dataset.index);
+        const pergunta = cargoSelecionado.perguntas[index].texto;
+        respostas.push(`P: ${pergunta}\nR: ${textarea.value.trim()}`);
+    });
+
+    const textoEntrevista = respostas.join('\n\n');
+    if (textoEntrevista.length < 50) {
+        mostrarMensagem('⚠️ Digite mais respostas para que a IA possa analisar.', 'info');
+        return;
+    }
+
+    // Feedback Visual
+    const btn = document.getElementById('btnAnalisarIA');
+    const loader = document.getElementById('aiLoader');
+    if (btn) btn.disabled = true;
+    if (loader) loader.classList.remove('hidden');
+
+    try {
+        const prompt = `
+            Você é um assistente de recrutamento sênior da empresa Princesinha Festas.
+            Analise a entrevista abaixo para o cargo de ${cargoSelecionado.nome}.
+            
+            DADOS DA ENTREVISTA:
+            ${textoEntrevista}
+            
+            INSTRUÇÕES:
+            1. Gere um parecer profissional em português.
+            2. Responda em formato JSON estrito com estas chaves: "pontosFortes", "pontosMelhorar", "observacoes", "notaSugerida" (1-5).
+            3. Seja objetivo e profissional.
+            
+            ESTRUTURA DO JSON:
+            {
+              "pontosFortes": "liste em tópicos curtos os destaques",
+              "pontosMelhorar": "liste em tópicos curtos o que faltou ou alertas",
+              "observacoes": "um resumo de 3 parágrafos curtos sobre o perfil",
+              "notaSugerida": 4
+            }
+        `;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { response_mime_type: "application/json" }
+            })
+        });
+
+        if (!response.ok) throw new Error('Falha na API do Gemini');
+
+        const data = await response.json();
+        const resultText = data.candidates[0].content.parts[0].text;
+        const analise = JSON.parse(resultText);
+
+        // Preencher Campos
+        const fFortes = document.getElementById('pontosFortes');
+        const fMelhorar = document.getElementById('pontosMelhorar');
+        const fObs = document.getElementById('observacoes');
+
+        if (fFortes) fFortes.value = analise.pontosFortes;
+        if (fMelhorar) fMelhorar.value = analise.pontosMelhorar;
+        if (fObs) fObs.value = analise.observacoes;
+
+        // Efeito visual de destaque
+        [fFortes, fMelhorar, fObs].forEach(el => {
+            if (el) {
+                el.classList.add('ai-field-highlight');
+                setTimeout(() => el.classList.remove('ai-field-highlight'), 2000);
+            }
+        });
+
+        mostrarMensagem('🤖 Análise concluída! Os campos foram preenchidos.', 'success');
+
+    } catch (err) {
+        console.error(err);
+        mostrarMensagem('❌ Erro na análise da IA. Verifique sua chave ou conexão.', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+        if (loader) loader.classList.add('hidden');
+    }
 }
