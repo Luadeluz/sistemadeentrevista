@@ -1228,7 +1228,12 @@ function carregarPainelDia(dataFiltro = null) {
 
     // Atualizar Resumo
     const total = entrevistasDoDia.length;
-    const triagem = entrevistasDoDia.filter(e => e.status === 'agendado').length;
+    // TRIAGENS: Contar qualquer um que esteja na fase de triagem (agendado, iniciado ou aprovado na triagem)
+    const triagem = entrevistasDoDia.filter(e =>
+        e.status === 'agendado' || e.status === 'analise' || e.status === 'aprovado_triagem' || e.status === 'aprovado'
+    ).length;
+
+    // GERÊNCIA: Contar quem está agendado para a gerência
     const gerencia = entrevistasDoDia.filter(e => e.status === 'agendado_gerencia').length;
 
     resumo.innerHTML = `
@@ -2434,9 +2439,14 @@ function imprimirRelatorio() {
 
 // Estatísticas
 function atualizarEstatisticas() {
+    if (!entrevistas) return;
+
     // Totais
     const total = entrevistas.length;
-    const agendados = entrevistas.filter(e => e.status === 'agendado').length;
+
+    // AGENDADOS: Consideramos qualquer um que ainda NÃO tenha um resultado final (contratado/reprovado/etc)
+    const statusFinais = ['contratado', 'reprovado', 'reprovado_gerencia', 'faltou', 'vaga_cancelada', 'desistencia_candidato'];
+    const agendados = entrevistas.filter(e => !statusFinais.includes(e.status)).length;
     const realizados = total - agendados;
 
     document.getElementById('totalEntrevistas').textContent = total;
@@ -2493,7 +2503,8 @@ function atualizarGraficoCargos() {
     const contagemAgendados = {};
 
     entrevistas.forEach(entrevista => {
-        if (entrevista.status === 'agendado') {
+        const statusFinais = ['contratado', 'reprovado', 'reprovado_gerencia', 'faltou', 'vaga_cancelada', 'desistencia_candidato'];
+        if (!statusFinais.includes(entrevista.status)) {
             contagemAgendados[entrevista.cargoNome] = (contagemAgendados[entrevista.cargoNome] || 0) + 1;
         } else {
             contagemRealizados[entrevista.cargoNome] = (contagemRealizados[entrevista.cargoNome] || 0) + 1;
@@ -2554,7 +2565,6 @@ function atualizarGraficoMensal() {
     chavesMeses.forEach(k => { dadosRealizados[k] = 0; dadosAgendados[k] = 0; });
 
     entrevistas.forEach(entrevista => {
-        // Correção: Parse manual da data para evitar problemas de fuso horário (UTC vs Local)
         let key;
         if (entrevista.dataEntrevista && typeof entrevista.dataEntrevista === 'string' && entrevista.dataEntrevista.includes('-')) {
             const [ano, mes] = entrevista.dataEntrevista.split('-');
@@ -2565,7 +2575,8 @@ function atualizarGraficoMensal() {
         }
 
         if (dadosRealizados.hasOwnProperty(key)) {
-            if (entrevista.status === 'agendado') {
+            const statusFinais = ['contratado', 'reprovado', 'reprovado_gerencia', 'faltou', 'vaga_cancelada', 'desistencia_candidato'];
+            if (!statusFinais.includes(entrevista.status)) {
                 dadosAgendados[key]++;
             } else {
                 dadosRealizados[key]++;
