@@ -3705,15 +3705,19 @@ window.analisarComIA = async function () {
             }
         `;
 
-        // Utilizando gemini-1.5-flash que é mais rápido e suporta JSON nativo
+        // Verificação básica da chave
+        if (!apiKey.startsWith('AIza')) {
+            throw new Error("A chave API parece incorreta. Ela deve começar com 'AIza'. Verifique se copiou corretamente no menu Configurações");
+        }
+
+        // Utilizando gemini-1.5-flash
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { response_mime_type: "application/json" }
+                contents: [{ parts: [{ text: prompt }] }]
             })
         });
 
@@ -3762,7 +3766,7 @@ window.analisarComIA = async function () {
 
     } catch (err) {
         console.error(err);
-        mostrarMensagem(`❌ Erro na IA: ${err.message}. Verifique sua chave ou conexão.`, 'error');
+        mostrarMensagem(`❌ Erro na IA: ${err.message}`, 'error');
     } finally {
         if (btn) btn.disabled = false;
         if (loader) loader.classList.add('hidden');
