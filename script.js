@@ -3705,10 +3705,8 @@ window.analisarComIA = async function () {
             }
         `;
 
-        // O modelo 'gemini-1.5-flash' pode não estar disponível em todas as regiões na versão 'v1beta'.
-        // O erro "404 Not Found" indica isso.
-        // Trocamos para 'gemini-pro', um modelo estável e amplamente disponível que funciona perfeitamente para esta tarefa.
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+        // Utilizando gemini-1.5-flash que é mais rápido e suporta JSON nativo
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
         const response = await fetch(url, {
             method: 'POST',
@@ -3764,7 +3762,7 @@ window.analisarComIA = async function () {
 
     } catch (err) {
         console.error(err);
-        mostrarMensagem(`❌ Erro na IA: ${err.message}`, 'error');
+        mostrarMensagem(`❌ Erro na IA: ${err.message}. Verifique sua chave ou conexão.`, 'error');
     } finally {
         if (btn) btn.disabled = false;
         if (loader) loader.classList.add('hidden');
