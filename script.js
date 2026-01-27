@@ -222,7 +222,10 @@ let ultimoItemExcluido = null;
 let cronometroInterval = null;
 let tempoInicioCronometro = 0;
 let agendaVisualizacao = 'triagem'; // 'triagem' ou 'gerencia'
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxlcg9AruQ8UqR8cUh65wJT_xjZYVNdE0vCVXtSyyAVt9LJ0EE3A8rQUpNfDwZD8Z3fDQ/exec'; // ⚠️ COLE A URL DO SEU SCRIPT DO GOOGLE AQUI (PASSO 9)
+// ⚠️ IMPORTANTE: Esta URL é para a sincronização com a Planilha Google.
+// Não confunda com a API Key do Gemini, que é configurada na interface do sistema.
+// Substitua o valor abaixo pela URL de implantação do seu Google Apps Script.
+const GOOGLE_SCRIPT_URL = 'COLE_A_URL_DO_SEU_GOOGLE_SCRIPT_AQUI';
 
 // Inicialização do sistema
 document.addEventListener('DOMContentLoaded', function () {
@@ -3654,6 +3657,12 @@ window.analisarComIA = async function () {
         return;
     }
 
+    // Verificar se há cargo selecionado para evitar erro ao acessar perguntas
+    if (!cargoSelecionado) {
+        mostrarMensagem('⚠️ Por favor, selecione um cargo antes de solicitar a análise da IA.', 'error');
+        return;
+    }
+
     // Coletar respostas atuais
     const respostas = [];
     document.querySelectorAll('.resposta-pergunta').forEach(textarea => {
@@ -3696,7 +3705,10 @@ window.analisarComIA = async function () {
             }
         `;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // O modelo 'gemini-1.5-flash' pode não estar disponível em todas as regiões na versão 'v1beta'.
+        // O erro "404 Not Found" indica isso.
+        // Trocamos para 'gemini-pro', um modelo estável e amplamente disponível que funciona perfeitamente para esta tarefa.
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
         const response = await fetch(url, {
             method: 'POST',
@@ -3707,10 +3719,24 @@ window.analisarComIA = async function () {
             })
         });
 
-        if (!response.ok) throw new Error('Falha na API do Gemini');
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.error?.message || response.statusText;
+            throw new Error(`Erro API (${response.status}): ${errorMessage}`);
+        }
 
         const data = await response.json();
-        const resultText = data.candidates[0].content.parts[0].text;
+        let resultText = data.candidates[0].content.parts[0].text;
+        
+        // Limpeza de segurança aprimorada: Busca o primeiro '{' e o último '}' para garantir JSON válido
+        const jsonMatch = resultText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            resultText = jsonMatch[0];
+        } else {
+            // Fallback para limpeza simples se não achar estrutura de objeto
+            resultText = resultText.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```\s*$/, '');
+        }
+
         const analise = JSON.parse(resultText);
 
         // Preencher Campos
@@ -3730,11 +3756,15 @@ window.analisarComIA = async function () {
             }
         });
 
-        mostrarMensagem('🤖 Análise concluída! Os campos foram preenchidos.', 'success');
+        if (analise.notaSugerida) {
+            mostrarMensagem(`🤖 Análise concluída! A IA sugere uma nota <b>${analise.notaSugerida}/5</b>.`, 'success');
+        } else {
+            mostrarMensagem('🤖 Análise concluída! Os campos foram preenchidos.', 'success');
+        }
 
     } catch (err) {
         console.error(err);
-        mostrarMensagem('❌ Erro na análise da IA. Verifique sua chave ou conexão.', 'error');
+        mostrarMensagem(`❌ Erro na IA: ${err.message}`, 'error');
     } finally {
         if (btn) btn.disabled = false;
         if (loader) loader.classList.add('hidden');
