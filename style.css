@@ -172,65 +172,6 @@ h1 {
     margin-bottom: 30px;
 }
 
-/* Pulse Loader para IA */
-.pulse-loader {
-    width: 20px;
-    height: 20px;
-    background: #6a0dad;
-    border-radius: 50%;
-    margin: 10px auto;
-    animation: pulse 1.5s infinite ease-in-out;
-}
-
-@keyframes pulse {
-    0% {
-        transform: scale(0.8);
-        opacity: 0.5;
-        box-shadow: 0 0 0 0 rgba(106, 13, 173, 0.7);
-    }
-
-    70% {
-        transform: scale(1.1);
-        opacity: 1;
-        box-shadow: 0 0 0 10px rgba(106, 13, 173, 0);
-    }
-
-    100% {
-        transform: scale(0.8);
-        opacity: 0.5;
-        box-shadow: 0 0 0 0 rgba(106, 13, 173, 0);
-    }
-}
-
-#btnAnalisarIA:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    box-shadow: none;
-}
-
-#btnAnalisarIA:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(106, 13, 173, 0.3);
-}
-
-.ai-field-highlight {
-    animation: highlightGreen 2s ease;
-}
-
-@keyframes highlightGreen {
-    0% {
-        background-color: rgba(16, 185, 129, 0);
-    }
-
-    20% {
-        background-color: rgba(16, 185, 129, 0.2);
-    }
-
-    100% {
-        background-color: rgba(16, 185, 129, 0);
-    }
-}
-
 @media (max-width: 1100px) {
     .app-container {
         grid-template-columns: 1fr;

@@ -38,11 +38,6 @@ window.sincronizarComPlanilha = async function () {
         console.log('Dados processados:', dadosPlanilha);
 
         if (Array.isArray(dadosPlanilha)) {
-            if (dadosPlanilha.length === 0) {
-                mostrarMensagem('ℹ️ Sincronizado, mas a planilha parece estar vazia.', 'info');
-                return;
-            }
-
             let novosRegistros = 0;
             let atualizados = 0;
             let precisaSubir = [];
@@ -449,7 +444,6 @@ function configurarAbas() {
                     break;
                 case 'configuracoes':
                     renderizarListaCargos();
-                    inicializarConfiguracoesIA();
                     break;
                 case 'painel-dia':
                     carregarPainelDia();
@@ -3620,155 +3614,4 @@ function verificarAcesso() {
     document.getElementById('inputSenhaLogin').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') tentarLogin();
     });
-}
-
-// --- INTEGRAÇÃO COM IA (GEMINI) ---
-
-function inicializarConfiguracoesIA() {
-    const apiKey = localStorage.getItem('geminiApiKey');
-    if (apiKey && document.getElementById('geminiApiKey')) {
-        document.getElementById('geminiApiKey').value = apiKey;
-        const statusEl = document.getElementById('statusApiKey');
-        if (statusEl) {
-            statusEl.innerHTML = '✅ Chave configurada e ativa.';
-            statusEl.style.color = '#059669';
-        }
-    }
-}
-
-window.salvarConfiguracoesIA = function () {
-    const key = document.getElementById('geminiApiKey').value.trim();
-    if (!key) {
-        mostrarMensagem('❌ Digite uma chave válida.', 'error');
-        return;
-    }
-
-    localStorage.setItem('geminiApiKey', key);
-    mostrarMensagem('✅ Gemini API Key salva com sucesso!', 'success');
-    inicializarConfiguracoesIA();
-}
-
-window.analisarComIA = async function () {
-    const apiKey = localStorage.getItem('geminiApiKey');
-    if (!apiKey) {
-        mostrarMensagem('⚠️ Configure a API Key nas Configurações primeiro!', 'error');
-        const tabConfig = document.querySelector('[data-tab="configuracoes"]');
-        if (tabConfig) tabConfig.click();
-        return;
-    }
-
-    // Verificar se há cargo selecionado para evitar erro ao acessar perguntas
-    if (!cargoSelecionado) {
-        mostrarMensagem('⚠️ Por favor, selecione um cargo antes de solicitar a análise da IA.', 'error');
-        return;
-    }
-
-    // Coletar respostas atuais
-    const respostas = [];
-    document.querySelectorAll('.resposta-pergunta').forEach(textarea => {
-        const index = parseInt(textarea.dataset.index);
-        const pergunta = cargoSelecionado.perguntas[index].texto;
-        respostas.push(`P: ${pergunta}\nR: ${textarea.value.trim()}`);
-    });
-
-    const textoEntrevista = respostas.join('\n\n');
-    if (textoEntrevista.length < 50) {
-        mostrarMensagem('⚠️ Digite mais respostas para que a IA possa analisar.', 'info');
-        return;
-    }
-
-    // Feedback Visual
-    const btn = document.getElementById('btnAnalisarIA');
-    const loader = document.getElementById('aiLoader');
-    if (btn) btn.disabled = true;
-    if (loader) loader.classList.remove('hidden');
-
-    try {
-        const prompt = `
-            Você é um assistente de recrutamento sênior da empresa Princesinha Festas.
-            Analise a entrevista abaixo para o cargo de ${cargoSelecionado.nome}.
-            
-            DADOS DA ENTREVISTA:
-            ${textoEntrevista}
-            
-            INSTRUÇÕES:
-            1. Gere um parecer profissional em português.
-            2. Responda em formato JSON estrito com estas chaves: "pontosFortes", "pontosMelhorar", "observacoes", "notaSugerida" (1-5).
-            3. Seja objetivo e profissional.
-            
-            ESTRUTURA DO JSON:
-            {
-              "pontosFortes": "liste em tópicos curtos os destaques",
-              "pontosMelhorar": "liste em tópicos curtos o que faltou ou alertas",
-              "observacoes": "um resumo de 3 parágrafos curtos sobre o perfil",
-              "notaSugerida": 4
-            }
-        `;
-
-        // Verificação básica da chave
-        if (!apiKey.startsWith('AIza')) {
-            throw new Error("A chave API parece incorreta. Ela deve começar com 'AIza'. Verifique se copiou corretamente no menu Configurações");
-        }
-
-        // Utilizando gemini-1.5-flash
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.error?.message || response.statusText;
-            throw new Error(`Erro API (${response.status}): ${errorMessage}`);
-        }
-
-        const data = await response.json();
-        let resultText = data.candidates[0].content.parts[0].text;
-        
-        // Limpeza de segurança aprimorada: Busca o primeiro '{' e o último '}' para garantir JSON válido
-        const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            resultText = jsonMatch[0];
-        } else {
-            // Fallback para limpeza simples se não achar estrutura de objeto
-            resultText = resultText.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```\s*$/, '');
-        }
-
-        const analise = JSON.parse(resultText);
-
-        // Preencher Campos
-        const fFortes = document.getElementById('pontosFortes');
-        const fMelhorar = document.getElementById('pontosMelhorar');
-        const fObs = document.getElementById('observacoes');
-
-        if (fFortes) fFortes.value = analise.pontosFortes;
-        if (fMelhorar) fMelhorar.value = analise.pontosMelhorar;
-        if (fObs) fObs.value = analise.observacoes;
-
-        // Efeito visual de destaque
-        [fFortes, fMelhorar, fObs].forEach(el => {
-            if (el) {
-                el.classList.add('ai-field-highlight');
-                setTimeout(() => el.classList.remove('ai-field-highlight'), 2000);
-            }
-        });
-
-        if (analise.notaSugerida) {
-            mostrarMensagem(`🤖 Análise concluída! A IA sugere uma nota <b>${analise.notaSugerida}/5</b>.`, 'success');
-        } else {
-            mostrarMensagem('🤖 Análise concluída! Os campos foram preenchidos.', 'success');
-        }
-
-    } catch (err) {
-        console.error(err);
-        mostrarMensagem(`❌ Erro na IA: ${err.message}`, 'error');
-    } finally {
-        if (btn) btn.disabled = false;
-        if (loader) loader.classList.add('hidden');
-    }
 }
