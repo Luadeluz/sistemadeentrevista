@@ -218,7 +218,6 @@ let cronometroInterval = null;
 let tempoInicioCronometro = 0;
 let agendaVisualizacao = 'triagem'; // 'triagem' ou 'gerencia'
 // ⚠️ IMPORTANTE: Esta URL é para a sincronização com a Planilha Google.
-// Não confunda com a API Key do Gemini, que é configurada na interface do sistema.
 // Substitua o valor abaixo pela URL de implantação do seu Google Apps Script.
 const GOOGLE_SCRIPT_URL = 'COLE_A_URL_DO_SEU_GOOGLE_SCRIPT_AQUI';
 
